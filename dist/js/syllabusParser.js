@@ -42,17 +42,32 @@ export async function parseSyllabusContent(inputSource) {
 async function parseWithGeminiAPI(textContent, apiKey) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const systemPrompt = `Eres un sistema experto en análisis de syllabus y calendarizaciones universitarias en Chile (con énfasis en la Universidad del Desarrollo UDD).
-Analiza el siguiente texto de syllabus y extrae la información requerida en un objeto JSON estricto con las siguientes claves:
-- name (string): Nombre exacto del ramo o asignatura.
-- code (string): Código de la asignatura (ej: MAT-201, INF-102).
-- credits (number): Créditos SCT (número).
-- requiredAttendancePercent (number): Porcentaje de asistencia exigido (ej: 75).
-- totalClasses (number): Total de días o sesiones de clases en el semestre (ej: 32).
-- modulesPerDay (number): 2 si se imparte en bloques/módulos dobles (ej: H1-H2 UDD) o 1 si es módulo único.
-- evaluations (array): Lista de certámenes o evaluaciones con formato [{ name: string, weight: number, date: string }]. Las ponderaciones de las evaluaciones deben sumar 100%.
+  const systemPrompt = `Eres un sistema experto avanzado en análisis de syllabus, programas de curso y calendarizaciones universitarias en Chile, con especialización en la Universidad del Desarrollo (UDD).
+Tu tarea es leer detenidamente el texto proporcionado y extraer con precisión quirúrgica la siguiente información en formato JSON estricto.
 
-Responde ÚNICAMENTE con el objeto JSON estructurado.`;
+Reglas de extracción críticas:
+1. credits (number): Busca intensivamente términos como "Créditos", "Créditos SCT", "SCT", "UC" o "Créditos UDD". Extrae solo el número entero (ej. 6, 8, 10). Si no encuentras, usa 6.
+2. evaluations (array): Es VITAL que extraigas TODAS las evaluaciones y sus porcentajes correctos. Busca tablas de evaluación, secciones de "Estrategia de Evaluación" o "Ponderaciones". Extrae objetos con { "name": string, "weight": number, "date": string }.
+   - Asegúrate de extraer correctamente los porcentajes (ej: Certamen 1 25%, Examen 30%).
+   - "weight" debe ser un número (ej. 25 para 25%).
+   - Detecta: "Examen", "Certamen", "Solemne", "Controles", "Ayudantía", "Proyecto", "Laboratorio".
+   - Las ponderaciones (weight) DEBEN sumar idealmente 100. Revisa el texto dos veces para no perder porcentajes.
+3. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2, H3-H4, típico en UDD) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
+4. totalClasses (number): Cuenta las semanas del calendario o extrae las clases totales. Por defecto 32 (16 semanas x 2).
+5. requiredAttendancePercent (number): Busca % de asistencia (ej: 75% o 80%). Por defecto 75.
+
+El JSON debe tener EXACTAMENTE esta estructura:
+{
+  "name": "string",
+  "code": "string",
+  "credits": number,
+  "requiredAttendancePercent": number,
+  "totalClasses": number,
+  "modulesPerDay": number,
+  "evaluations": [ { "name": "string", "weight": number, "date": "string" } ]
+}
+
+Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markdown (no uses \`\`\`json), sin texto adicional.`;
 
   const payload = {
     contents: [
