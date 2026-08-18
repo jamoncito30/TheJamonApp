@@ -2,9 +2,9 @@
 const SUPABASE_URL_KEY = 'thejamonapp_supabase_url';
 const SUPABASE_ANON_KEY = 'thejamonapp_supabase_anon';
 
-// Default Supabase configuration placeholders
-let supabaseUrl = localStorage.getItem(SUPABASE_URL_KEY) || '';
-let supabaseAnonKey = localStorage.getItem(SUPABASE_ANON_KEY) || '';
+// Default Supabase project configuration
+let supabaseUrl = localStorage.getItem(SUPABASE_URL_KEY) || 'https://ndbkxzpmxkgvbytfjdtb.supabase.co';
+let supabaseAnonKey = localStorage.getItem(SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kYmt4enBteGtndmJ5dGZqZHRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcwMTgyMjUsImV4cCI6MjEwMjU5NDIyNX0.gfT_P8HphJgZrGHhFAVabyvKI8qS3sFCmgrVroLjkSc';
 
 let supabaseClient = null;
 
