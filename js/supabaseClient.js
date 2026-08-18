@@ -76,10 +76,12 @@ export async function signInWithGoogle() {
   const client = getSupabase();
   if (!client) throw new Error('Supabase no está configurado.');
 
+  const redirectUrl = window.location.origin + window.location.pathname;
+
   const { data, error } = await client.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin
+      redirectTo: redirectUrl
     }
   });
   if (error) throw error;
