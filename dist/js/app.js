@@ -425,6 +425,60 @@ function attachGradeSaveHandler(course) {
   const saveBtn = document.getElementById('save-grades-btn');
   const toggleUdd = document.getElementById('toggle-udd-rule');
 
+  const updateCalculationsRealTime = () => {
+    // 1. Sync inputs to course object in memory
+    const inputs = document.querySelectorAll('.grade-input');
+    inputs.forEach(input => {
+      const evalId = input.getAttribute('data-eval-id');
+      const valStr = input.value.trim();
+      const ev = course.evaluations.find(e => e.id === evalId);
+      if (ev) {
+        ev.grade = valStr !== '' ? parseFloat(valStr) : null;
+      }
+    });
+
+    const examInput = document.getElementById('exam-grade-input');
+    if (examInput) {
+      const examVal = examInput.value.trim();
+      course.examGrade = examVal !== '' ? parseFloat(examVal) : null;
+    }
+
+    // 2. Auto save to storage so refresh doesn't lose state
+    saveCourse(course);
+
+    // 3. Recalculate metrics
+    const metrics = calculateCourseGrades(course, 4.0);
+
+    // 4. Update DOM elements live
+    const presEl = document.getElementById('promedio-presentacion-val');
+    if (presEl) {
+      presEl.textContent = metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I';
+      presEl.className = `text-sm font-extrabold ${metrics.presentationGrade >= 4.0 ? 'text-emerald-400' : (metrics.presentationGrade !== null ? 'text-rose-400' : 'text-slate-400')}`;
+    }
+
+    const reqEl = document.getElementById('nota-examen-requerida-val');
+    if (reqEl) {
+      reqEl.textContent = metrics.requiredRemainingGrade !== null ? metrics.requiredRemainingGrade : 'Aprobado';
+      reqEl.className = `text-base font-extrabold ${metrics.requiredRemainingGrade === 'Reprobado' ? 'text-rose-400' : (metrics.isExempt || metrics.requiredRemainingGrade === 'Aprobado' ? 'text-emerald-400' : 'text-amber-400')} mt-0.5`;
+    }
+
+    const subEl = document.getElementById('nota-final-subtext-val');
+    if (subEl) {
+      subEl.textContent = `${metrics.presentationWeight || 70}% Presentación (${metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I'}) + ${metrics.examWeight || 30}% Examen`;
+    }
+
+    const finalEl = document.getElementById('nota-final-ponderada-val');
+    if (finalEl) {
+      finalEl.textContent = metrics.currentAverage !== null ? metrics.currentAverage : 'S/I';
+      finalEl.className = `text-2xl font-black ${metrics.currentAverage >= 4.0 ? 'text-emerald-400' : (metrics.currentAverage !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 rounded-xl bg-slate-950 border border-slate-800`;
+    }
+  };
+
+  // Attach real-time input listeners to all grade inputs
+  document.querySelectorAll('.grade-input, #exam-grade-input').forEach(input => {
+    input.addEventListener('input', updateCalculationsRealTime);
+  });
+
   if (toggleUdd) {
     toggleUdd.addEventListener('change', (e) => {
       course.isUddRuleEnabled = e.target.checked;
@@ -436,25 +490,8 @@ function attachGradeSaveHandler(course) {
 
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      const inputs = document.querySelectorAll('.grade-input');
-      inputs.forEach(input => {
-        const evalId = input.getAttribute('data-eval-id');
-        const valStr = input.value.trim();
-        const ev = course.evaluations.find(e => e.id === evalId);
-        if (ev) {
-          ev.grade = valStr !== '' ? parseFloat(valStr) : null;
-        }
-      });
-
-      const examInput = document.getElementById('exam-grade-input');
-      if (examInput) {
-        const examVal = examInput.value.trim();
-        course.examGrade = examVal !== '' ? parseFloat(examVal) : null;
-      }
-
-      saveCourse(course);
+      updateCalculationsRealTime();
       showToast('¡Notas guardadas correctamente!', 'success');
-      attachGradesListeners();
     });
   }
 }

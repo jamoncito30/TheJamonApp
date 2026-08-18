@@ -346,35 +346,42 @@ export function calculateCourseGrades(course, passingGrade = 4.0) {
   const currentAverage = totalCourseGradedWeight > 0 ? (finalGradeSum / (totalCourseGradedWeight / 100)) : null;
 
   let requiredRemainingGrade = null;
-  if (totalCourseUngradedWeight > 0) {
-    if (isExempt) {
-      requiredRemainingGrade = 'Eximido (0.0)';
-    } else {
-      if (isUddRule && totalCourseUngradedWeight === examWeight && gradedCertamens.length > 0 && examGrade === null) {
-        let lowestCertamen = gradedCertamens[0];
-        gradedCertamens.forEach(c => {
-          if (Number(c.grade) < Number(lowestCertamen.grade)) lowestCertamen = c;
-        });
-        
-        const lowestWeight = Number(lowestCertamen.weight) || 0;
-        const lowestCertamenCourseWeight = (lowestWeight / 100) * presentationWeight;
-        const otherEvalsSum = finalGradeSum - (Number(lowestCertamen.grade) * (lowestCertamenCourseWeight / 100));
-        
-        const combinedWeightPercent = (lowestCertamenCourseWeight + examWeight) / 100;
-        const neededWithUDD = (passingGrade - otherEvalsSum) / combinedWeightPercent;
-        const neededNormal = (passingGrade - finalGradeSum) / (examWeight / 100);
-        
-        if (neededNormal <= 4.0) {
-          requiredRemainingGrade = Math.max(1.0, neededNormal).toFixed(1);
-        } else if (neededWithUDD <= 4.0) {
-          requiredRemainingGrade = '4.0 (Regla UDD)';
-        } else {
-          requiredRemainingGrade = Math.min(7.0, neededWithUDD).toFixed(1);
-        }
+
+  if (examGrade !== null) {
+    requiredRemainingGrade = (currentAverage !== null && currentAverage >= 4.0) ? 'Aprobado' : 'Reprobado';
+  } else if (isExempt) {
+    requiredRemainingGrade = 'Eximido (0.0)';
+  } else {
+    if (isUddRule && gradedCertamens.length > 0) {
+      let lowestCertamen = gradedCertamens[0];
+      gradedCertamens.forEach(c => {
+        if (Number(c.grade) < Number(lowestCertamen.grade)) lowestCertamen = c;
+      });
+      
+      const lowestWeight = Number(lowestCertamen.weight) || 0;
+      const lowestCertamenCourseWeight = (lowestWeight / 100) * presentationWeight;
+      const otherEvalsSum = finalGradeSum - (Number(lowestCertamen.grade) * (lowestCertamenCourseWeight / 100));
+      
+      const combinedWeightPercent = (lowestCertamenCourseWeight + examWeight) / 100;
+      const neededWithUDD = (passingGrade - otherEvalsSum) / combinedWeightPercent;
+      const neededNormal = (passingGrade - finalGradeSum) / (examWeight / 100);
+      
+      if (neededNormal <= 4.0) {
+        requiredRemainingGrade = neededNormal <= 1.0 ? 'Aprobado' : Math.max(1.0, neededNormal).toFixed(1);
+      } else if (neededWithUDD <= 4.0) {
+        requiredRemainingGrade = '4.0 (Regla UDD)';
       } else {
-        const neededPoints = passingGrade - finalGradeSum;
-        const requiredGrade = neededPoints / (totalCourseUngradedWeight / 100);
-        requiredRemainingGrade = requiredGrade > 0 ? requiredGrade.toFixed(1) : '1.0';
+        requiredRemainingGrade = neededWithUDD <= 7.0 ? neededWithUDD.toFixed(1) : 'Inalcanzable';
+      }
+    } else {
+      const neededPoints = passingGrade - finalGradeSum;
+      const requiredGrade = neededPoints / (examWeight / 100);
+      if (requiredGrade <= 1.0) {
+        requiredRemainingGrade = 'Aprobado';
+      } else if (requiredGrade > 7.0) {
+        requiredRemainingGrade = 'Inalcanzable';
+      } else {
+        requiredRemainingGrade = requiredGrade.toFixed(1);
       }
     }
   }
@@ -386,9 +393,7 @@ export function calculateCourseGrades(course, passingGrade = 4.0) {
     currentAverage: currentAverage !== null ? currentAverage.toFixed(2) : null,
     totalGradedWeight: totalCourseGradedWeight,
     totalUngradedWeight: totalCourseUngradedWeight,
-    requiredRemainingGrade: requiredRemainingGrade === 'Eximido (0.0)' || requiredRemainingGrade === '4.0 (Regla UDD)' 
-      ? requiredRemainingGrade 
-      : (requiredRemainingGrade && parseFloat(requiredRemainingGrade) <= 7.0 ? requiredRemainingGrade : (requiredRemainingGrade ? 'Inalcanzable' : null)),
+    requiredRemainingGrade,
     isExempt,
     isUddRule,
     replacedCertamenName,

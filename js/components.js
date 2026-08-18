@@ -540,7 +540,7 @@ export function renderGradeDetails(course) {
         <div class="flex items-center gap-2">
           <div class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-right">
             <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">Promedio Presentación</span>
-            <span class="text-sm font-extrabold ${metrics.presentationGrade >= 4.0 ? 'text-emerald-400' : (metrics.presentationGrade !== null ? 'text-rose-400' : 'text-slate-400')}">
+            <span id="promedio-presentacion-val" class="text-sm font-extrabold ${metrics.presentationGrade >= 4.0 ? 'text-emerald-400' : (metrics.presentationGrade !== null ? 'text-rose-400' : 'text-slate-400')}">
               ${metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I'}
             </span>
           </div>
@@ -581,7 +581,7 @@ export function renderGradeDetails(course) {
         <!-- Requirement Box -->
         <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-center">
           <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">Nota Examen Requerida</span>
-          <div class="text-base font-extrabold ${metrics.isExempt ? 'text-emerald-400' : 'text-amber-400'} mt-0.5">
+          <div id="nota-examen-requerida-val" class="text-base font-extrabold ${metrics.requiredRemainingGrade === 'Reprobado' ? 'text-rose-400' : (metrics.isExempt || metrics.requiredRemainingGrade === 'Aprobado' ? 'text-emerald-400' : 'text-amber-400')} mt-0.5">
             ${metrics.requiredRemainingGrade !== null ? metrics.requiredRemainingGrade : 'Aprobado'}
           </div>
           <span class="text-[8px] text-slate-500 block">${metrics.isExempt ? '¡Eximido UDD!' : 'para aprobación (4.0)'}</span>
@@ -592,11 +592,11 @@ export function renderGradeDetails(course) {
       <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-700/80 flex items-center justify-between">
         <div>
           <span class="text-xs font-bold text-white block">Nota Final Ponderada (100%)</span>
-          <span class="text-[10px] text-slate-400">
+          <span id="nota-final-subtext-val" class="text-[10px] text-slate-400">
             ${metrics.presentationWeight || 70}% Presentación (${metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I'}) + ${metrics.examWeight || 30}% Examen
           </span>
         </div>
-        <div class="text-2xl font-black ${metrics.currentAverage >= 4.0 ? 'text-emerald-400' : (metrics.currentAverage !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 rounded-xl bg-slate-950 border border-slate-800">
+        <div id="nota-final-ponderada-val" class="text-2xl font-black ${metrics.currentAverage >= 4.0 ? 'text-emerald-400' : (metrics.currentAverage !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 rounded-xl bg-slate-950 border border-slate-800">
           ${metrics.currentAverage !== null ? metrics.currentAverage : 'S/I'}
         </div>
       </div>
