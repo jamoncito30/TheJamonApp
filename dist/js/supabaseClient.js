@@ -86,6 +86,20 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function signInWithApple() {
+  const client = getSupabase();
+  if (!client) throw new Error('Supabase no está configurado.');
+
+  const { data, error } = await client.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function signOut() {
   const client = getSupabase();
   if (client) {

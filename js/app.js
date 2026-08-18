@@ -32,6 +32,7 @@ import {
   signUpWithEmail,
   signInWithEmail,
   signInWithGoogle,
+  signInWithApple,
   signOut,
   getCurrentUser,
   fetchUserCoursesFromSupabase,
@@ -274,6 +275,22 @@ function attachAuthListeners() {
         await signInWithGoogle();
       } catch (err) {
         showToast(err.message || 'Error al conectar con Google', 'danger');
+      }
+    });
+  }
+
+  const appleBtn = document.getElementById('auth-apple-btn');
+  if (appleBtn) {
+    appleBtn.addEventListener('click', async () => {
+      if (!isSupabaseConfigured()) {
+        showToast('Debes configurar Supabase primero.', 'warning');
+        openSupabaseConfigModal();
+        return;
+      }
+      try {
+        await signInWithApple();
+      } catch (err) {
+        showToast(err.message || 'Error al conectar con Apple', 'danger');
       }
     });
   }
