@@ -19,18 +19,25 @@ export function renderDashboardView(courses) {
             </p>
           </div>
 
-          <div class="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 text-left space-y-2">
-            <div class="flex items-center gap-2 text-xs font-semibold text-slate-200">
-              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
-              <span>Comienza agregando tus ramos fácilmente:</span>
+          <div class="p-3.5 bg-slate-900/80 rounded-2xl border border-slate-800 text-left space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 text-xs font-semibold text-slate-200">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                <span>Comienza agregando tus ramos fácilmente:</span>
+              </div>
             </div>
             <ul class="text-[11px] text-slate-400 space-y-1 pl-6 list-disc">
-              <li>Adjuntando la calendarización/syllabus (PDF o texto).</li>
-              <li>Ingresando los datos de tu asignatura manualmente.</li>
+              <li>Descarga la <b>Calendarización</b> en <b>Canvas Student UDD</b> (PDF o texto).</li>
+              <li>Súbela a la app para calcular tus comodines y notas al instante.</li>
             </ul>
+
+            <button id="welcome-tutorial-btn" class="w-full py-2 px-3 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-blue-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+              <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
+              Ver Tutorial de Calendarización & Canvas
+            </button>
           </div>
 
-          <div class="pt-2">
+          <div class="pt-1">
             <button id="welcome-upload-btn" class="w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 active:scale-95 transition-all flex items-center justify-center gap-2">
               <i data-lucide="file-up" class="w-4 h-4"></i>
               Subir Ramos o Calendarización
@@ -197,15 +204,48 @@ export function renderDashboardView(courses) {
             <i data-lucide="layers" class="w-4 h-4 text-slate-400"></i>
             Mis Asignaturas (${courses.length})
           </h2>
-          <button id="view-history-btn" class="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1">
-            <i data-lucide="history" class="w-3.5 h-3.5"></i>
-            Historial
-          </button>
+          <div class="flex items-center gap-2">
+            <button id="dashboard-tutorial-btn" class="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/20">
+              <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
+              Guía Canvas
+            </button>
+            <button id="view-history-btn" class="text-xs text-slate-400 hover:text-slate-300 font-semibold flex items-center gap-1">
+              <i data-lucide="history" class="w-3.5 h-3.5"></i>
+              Historial
+            </button>
+          </div>
         </div>
 
         ${courseCardsHtml}
       </div>
     </div>
+  `;
+}
+
+// Canvas Logo SVG Vector Icon (Red Instructure Flower)
+export function getCanvasLogoSvg(customClass = "w-4 h-4") {
+  return `
+    <svg class="${customClass}" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#E62739">
+        <circle cx="50" cy="27" r="5.5"/>
+        <circle cx="50" cy="73" r="5.5"/>
+        <circle cx="27" cy="50" r="5.5"/>
+        <circle cx="73" cy="50" r="5.5"/>
+        <circle cx="33.7" cy="33.7" r="5.5"/>
+        <circle cx="66.3" cy="33.7" r="5.5"/>
+        <circle cx="33.7" cy="66.3" r="5.5"/>
+        <circle cx="66.3" cy="66.3" r="5.5"/>
+        
+        <path d="M38 10 C46 6.5 54 6.5 62 10 C58 17 42 17 38 10 Z"/>
+        <path d="M38 90 C46 93.5 54 93.5 62 90 C58 83 42 83 38 90 Z"/>
+        <path d="M10 38 C6.5 46 6.5 54 10 62 C17 58 17 42 10 38 Z"/>
+        <path d="M90 38 C93.5 46 93.5 54 90 62 C83 58 83 42 90 38 Z"/>
+        <path d="M18 27 C25 20 30 25 33 29 C27 33 22 30 18 27 Z"/>
+        <path d="M82 27 C75 20 70 25 67 29 C73 33 78 30 82 27 Z"/>
+        <path d="M18 73 C25 80 30 75 33 71 C27 67 22 70 18 73 Z"/>
+        <path d="M82 73 C75 80 70 75 67 71 C73 67 78 70 82 73 Z"/>
+      </g>
+    </svg>
   `;
 }
 
@@ -224,35 +264,65 @@ export function renderSyllabusView() {
         <p class="text-xs text-slate-400 mt-1">Sube o pega la calendarización de tus asignaturas para extraer la asistencia exigida, certámenes y módulos.</p>
       </div>
 
-      <!-- Gemini AI Integration Card -->
-      <div class="ios-card p-4 rounded-3xl border border-indigo-500/30 space-y-3 bg-gradient-to-br from-indigo-950/40 to-purple-950/30">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-              <i data-lucide="sparkles" class="w-4 h-4"></i>
-            </div>
-            <div>
-              <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
-                Procesamiento IA con Gemini 2.5 Flash
-                <span class="text-[9px] font-extrabold ${hasKey ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'} px-1.5 py-0.5 rounded-full border">
-                  ${hasKey ? 'IA Activa ✨' : 'Opcional'}
-                </span>
-              </h3>
-              <p class="text-[10px] text-slate-400">Lee PDFs complejos, imágenes y calendarios UDD con máxima precisión</p>
-            </div>
+      <!-- Canvas UDD Helper Card / Launcher Banner -->
+      <div class="ios-card p-3.5 rounded-3xl border border-blue-500/30 bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
+            <i data-lucide="book-open-check" class="w-5 h-5"></i>
+          </div>
+          <div class="truncate">
+            <h3 class="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+              ¿No sabes qué archivo subir?
+              <span class="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.2 rounded font-extrabold">UDD</span>
+            </h3>
+            <p class="text-[10px] text-slate-400 truncate">Descarga tu calendarización en Canvas Student UDD</p>
           </div>
         </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="syllabus-open-tutorial-btn" class="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] shadow-sm shadow-blue-600/30 transition-all flex items-center gap-1">
+            <i data-lucide="book-open" class="w-3 h-3"></i>
+            Tutorial
+          </button>
+          <button id="syllabus-quick-canvas-btn" class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-[10px] shadow-md shadow-white/10 transition-all flex items-center gap-1.5 active:scale-95">
+            ${getCanvasLogoSvg("w-3.5 h-3.5 shrink-0")}
+            <span>Canvas App</span>
+          </button>
+        </div>
+      </div>
 
-        <div class="flex items-center gap-2 pt-1">
-          <input type="password" id="gemini-key-input" value="${apiKey}" placeholder="Pega tu Gemini API Key aquí..." class="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:border-purple-500 focus:outline-none" />
+      <!-- Gemini AI Status Banner (Active for all) -->
+      <div class="ios-card p-3.5 rounded-3xl border border-purple-500/30 bg-gradient-to-r from-purple-950/40 via-slate-900 to-indigo-950/40 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-9 h-9 rounded-2xl bg-purple-600/20 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/30 shadow-lg shadow-purple-500/10">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <div class="truncate">
+            <h3 class="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+              Motor IA Gemini 2.5 Flash
+              <span class="text-[8px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">Activo para todos ✨</span>
+            </h3>
+            <p class="text-[10px] text-slate-400 truncate">Extracción inteligente de calendarizaciones UDD</p>
+          </div>
+        </div>
+        
+        <button id="toggle-custom-key-btn" title="Configurar API Key personalizada" class="text-slate-400 hover:text-purple-300 text-[10px] font-bold py-1 px-2 rounded-lg bg-slate-800/80 border border-slate-700/60 transition-colors shrink-0 flex items-center gap-1">
+          <i data-lucide="key" class="w-3 h-3"></i>
+          <span>Personalizar</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Custom Key Input (Discreet / Optional) -->
+      <div id="custom-key-drawer" class="hidden ios-card p-3.5 rounded-2xl border border-purple-500/20 bg-slate-900/90 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-slate-200">Clave API de Gemini Personalizada</span>
+          <span class="text-[9px] text-slate-400">Opcional (ya incluye una compartida)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="password" id="gemini-key-input" value="${apiKey}" placeholder="Pega tu propia Gemini API Key aquí..." class="flex-1 bg-slate-950 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:border-purple-500 focus:outline-none" />
           <button id="save-gemini-key-btn" class="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/30 shrink-0">
             Guardar
           </button>
         </div>
-        <p class="text-[9.5px] text-slate-400 flex items-center justify-between">
-          <span>Obtén una API Key gratuita en 10 segundos en Google AI Studio:</span>
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline font-bold hover:text-purple-300">Conseguir Key →</a>
-        </p>
       </div>
 
       <!-- Drag & Drop Upload Zone -->
@@ -790,6 +860,232 @@ export function renderSupabaseConfigModal(currentUrl = '', currentKey = '') {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  `;
+}
+
+// 8. TUTORIAL & CANVAS UDD ONBOARDING MODAL
+export function renderCanvasTutorialModal() {
+  return `
+    <div id="canvas-tutorial-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div class="ios-card w-full max-w-md p-5 rounded-3xl space-y-4 border border-blue-500/30 shadow-2xl animate-ios-fade max-h-[92vh] flex flex-col justify-between overflow-hidden bg-slate-900/95">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800/80 shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <i data-lucide="book-open-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
+                Guía de Archivos & Canvas
+                <span class="text-[9px] font-extrabold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">UDD</span>
+              </h3>
+              <p class="text-[10px] text-slate-400">Cómo obtener y cargar tu calendarización</p>
+            </div>
+          </div>
+          <button id="close-tutorial-modal-btn" class="text-slate-400 hover:text-white p-1 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Scrollable Guide Content -->
+        <div class="space-y-4 overflow-y-auto pr-1 text-slate-200 text-xs">
+          
+          <!-- Fast Canvas Launcher Card -->
+          <div class="p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/50 via-slate-800/80 to-indigo-950/50 border border-blue-500/30 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-extrabold text-blue-300 flex items-center gap-1.5 uppercase tracking-wider">
+                <i data-lucide="compass" class="w-3.5 h-3.5 text-blue-400"></i>
+                Acceso Rápido a Canvas UDD
+              </span>
+              <span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded-full border border-emerald-500/30">Instructure</span>
+            </div>
+            
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Ingresa con tu correo institucional UDD (<span class="font-mono text-blue-300">@udd.cl</span> / <span class="font-mono text-blue-300">@alumnos.udd.cl</span>) para descargar tus programas de estudio.
+            </p>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button id="tutorial-open-canvas-app-btn" class="ios-tap-active py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs shadow-md shadow-white/10 flex items-center justify-center gap-2 transition-all active:scale-95">
+                ${getCanvasLogoSvg("w-4 h-4 shrink-0")}
+                <span>Abrir App Canvas</span>
+              </button>
+              
+              <a href="https://udd.instructure.com" target="_blank" rel="noopener noreferrer" class="ios-tap-active py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center">
+                <i data-lucide="external-link" class="w-3.5 h-3.5 text-slate-400"></i>
+                Canvas Web UDD
+              </a>
+            </div>
+            
+            <p class="text-[9.5px] text-slate-400 italic">
+              💡 En teléfonos (iOS/Android) intentará abrir directamente la app Canvas Student. Si estás en PC o no la tienes instalada, abrirá el portal web institucional.
+            </p>
+          </div>
+
+          <!-- Step 1: Qué archivo necesitas -->
+          <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-black flex items-center justify-center shrink-0">1</div>
+                <h4 class="font-bold text-white text-xs">¿Qué archivo necesitas?</h4>
+              </div>
+              <span class="text-[9px] font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <i data-lucide="chevrons-up-down" class="w-3 h-3"></i>
+                Desliza el PDF ↓
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              Necesitas el documento PDF de <b>"Calendarización / Programación de Estudios"</b> oficial de tu ramo (como este ejemplo real de la UDD):
+            </p>
+            
+            <!-- Real Scrollable UDD Document Sheet Preview -->
+            <div class="bg-white text-slate-900 rounded-2xl shadow-xl border border-slate-300 max-h-56 overflow-y-auto p-3.5 text-[10px] font-sans leading-tight space-y-3 select-none scroll-smooth">
+              
+              <!-- PDF Document Header -->
+              <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                <div class="font-extrabold text-blue-900 text-[11px] tracking-tight">UDD Universidad del Desarrollo</div>
+                <div class="font-bold text-slate-700 text-[9.5px]">Ingenieros UDD</div>
+              </div>
+
+              <!-- Title -->
+              <div class="text-center font-extrabold text-slate-900 text-[10.5px] border-b border-slate-100 pb-1 uppercase tracking-wide">
+                Calendarización Programación de Estudios Bimestrales
+              </div>
+
+              <!-- 1. Antecedentes Generales Table -->
+              <div class="space-y-1">
+                <div class="font-bold text-slate-800 text-[9.5px]">1. ANTECEDENTES GENERALES</div>
+                <table class="w-full text-left border-collapse border border-slate-300 text-[9px]">
+                  <tbody>
+                    <tr class="border-b border-slate-200"><td class="font-semibold bg-slate-50 p-1 w-1/3 border-r border-slate-200">Asignatura</td><td class="p-1 font-bold text-blue-800">Cálculo Diferencial</td></tr>
+                    <tr class="border-b border-slate-200"><td class="font-semibold bg-slate-50 p-1 border-r border-slate-200">Bimestre / Código</td><td class="p-1">3-2026 | <span class="font-bold">IPC126N</span></td></tr>
+                    <tr class="border-b border-slate-200"><td class="font-semibold bg-slate-50 p-1 border-r border-slate-200">Duración / Créditos</td><td class="p-1">Bimestral | <span class="font-bold text-amber-700">10 Créditos SCT</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 2. Horarios -->
+              <div class="space-y-1">
+                <div class="font-bold text-slate-800 text-[9.5px]">2. HORARIOS (Módulos)</div>
+                <table class="w-full text-center border-collapse border border-slate-300 text-[8.5px]">
+                  <thead class="bg-slate-100 font-bold border-b border-slate-300">
+                    <tr><th class="p-1 border-r border-slate-300">Día</th><th class="p-1 border-r border-slate-300">Módulo</th><th class="p-1">Sala</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200 font-semibold">Lunes a Viernes</td><td class="p-1 border-r border-slate-200 font-bold text-indigo-800">H1 y H2 (Bloque Doble)</td><td class="p-1">Y419 / S335</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 3. Profesores -->
+              <div class="space-y-1">
+                <div class="font-bold text-slate-800 text-[9.5px]">3. PROFESORES</div>
+                <div class="p-1 bg-slate-50 rounded border border-slate-200 text-[8.5px] flex justify-between">
+                  <span>Profesor: <b>Javier Diaz</b></span>
+                  <span class="text-blue-700">javier.diazg@udd.cl</span>
+                </div>
+              </div>
+
+              <!-- 4. Ponderación de Notas -->
+              <div class="space-y-1">
+                <div class="font-bold text-slate-800 text-[9.5px]">4. PONDERACIÓN DE NOTAS</div>
+                <table class="w-full text-left border-collapse border border-slate-300 text-[9px]">
+                  <thead class="bg-slate-100 font-bold border-b border-slate-300">
+                    <tr><th class="p-1 border-r border-slate-300">Evaluación</th><th class="p-1 text-center">Ponderación</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200">Certamen N°1</td><td class="p-1 text-center font-bold text-blue-700">35%</td></tr>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200">Certamen N°2</td><td class="p-1 text-center font-bold text-blue-700">35%</td></tr>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200">Controles</td><td class="p-1 text-center font-bold text-blue-700">20%</td></tr>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200">Talleres</td><td class="p-1 text-center font-bold text-blue-700">10%</td></tr>
+                    <tr class="border-b border-slate-300 bg-amber-50 font-bold"><td class="p-1 border-r border-slate-300">Nota de Presentación</td><td class="p-1 text-center text-amber-800">70%</td></tr>
+                    <tr class="border-b border-slate-200"><td class="p-1 border-r border-slate-200 font-bold">Examen Final</td><td class="p-1 text-center font-extrabold text-indigo-700">30%</td></tr>
+                    <tr class="bg-emerald-50"><td class="p-1 border-r border-slate-200 font-semibold text-emerald-900">Asistencia Exigida</td><td class="p-1 text-center font-extrabold text-emerald-800">Sobre 70%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 6. Cronograma Semanal -->
+              <div class="space-y-1">
+                <div class="font-bold text-slate-800 text-[9.5px]">6. CRONOGRAMA DE EVALUACIONES</div>
+                <div class="grid grid-cols-2 gap-1 text-[8.5px]">
+                  <div class="p-1 bg-slate-50 rounded border border-slate-200">Sem 2: <b>Control 1</b></div>
+                  <div class="p-1 bg-slate-50 rounded border border-slate-200">Sem 3: <b>Control 2</b></div>
+                  <div class="p-1 bg-blue-50 rounded border border-blue-200 text-blue-900 font-bold">Sem 4: CERTAMEN 1</div>
+                  <div class="p-1 bg-slate-50 rounded border border-slate-200">Sem 5: <b>Control 3</b></div>
+                  <div class="p-1 bg-slate-50 rounded border border-slate-200">Sem 6: <b>Control 4</b></div>
+                  <div class="p-1 bg-blue-50 rounded border border-blue-200 text-blue-900 font-bold">Sem 7: CERTAMEN 2</div>
+                  <div class="col-span-2 p-1 bg-indigo-50 rounded border border-indigo-200 text-indigo-900 font-bold text-center">Sem 8: EXAMEN ACUMULATIVO</div>
+                </div>
+              </div>
+
+              <!-- 8. Reglas UDD -->
+              <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-[8.5px] text-slate-600 space-y-0.5">
+                <div>• <b>Controles:</b> Se elimina la nota más baja.</div>
+                <div>• <b>Examen:</b> Si nota ≥ 4.0 sustituye el peor certamen.</div>
+                <div>• <b>Asistencia:</b> Exigencia mínima 70% de asistencia.</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Step 2: Cómo descargarlo en Canvas -->
+          <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-black flex items-center justify-center shrink-0">2</div>
+              <h4 class="font-bold text-white text-xs">¿Cómo encontrarlo en Canvas Student?</h4>
+            </div>
+            <ol class="space-y-1.5 text-[11px] text-slate-300 pl-1">
+              <li class="flex items-start gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span><b>Paso A:</b> Entra a la asignatura en Canvas (ej: <i>Cálculo Diferencial</i>).</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span><b>Paso B:</b> En el menú lateral o pestañas, ve a <b>"Archivos"</b> o <b>"Programa del Curso" / "Módulos"</b>.</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-blue-400 font-bold">•</span>
+                <span><b>Paso C:</b> Abre y descarga el archivo PDF de la <b>"Calendarización..."</b> a tu dispositivo (o copia su texto).</span>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Step 3: Carga en TheJamonApp -->
+          <div class="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-2">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-[11px] font-black flex items-center justify-center shrink-0">3</div>
+              <h4 class="font-bold text-white text-xs">Súbelo a TheJamonApp</h4>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              Ve a la pestaña <b>"Subir Ramos"</b>, arrastra el PDF o pega el texto. La app calculará tus comodines y notas al instante.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Modal Footer Controls -->
+        <div class="pt-2 border-t border-slate-800/80 space-y-2 shrink-0">
+          <div class="flex items-center justify-between px-1">
+            <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer select-none">
+              <input type="checkbox" id="dont-show-tutorial-checkbox" class="rounded bg-slate-800 border-slate-700 text-blue-600 focus:ring-0 focus:ring-offset-0" />
+              <span>No mostrar automáticamente al entrar</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="close-tutorial-action-btn" class="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all">
+              Entendido
+            </button>
+            <button id="tutorial-go-to-upload" class="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-1.5">
+              <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
+              Subir Calendarización
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   `;

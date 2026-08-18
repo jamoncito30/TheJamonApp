@@ -25,7 +25,8 @@ import {
   renderGradeDetails,
   renderCoursesView,
   renderAuthView,
-  renderSupabaseConfigModal 
+  renderSupabaseConfigModal,
+  renderCanvasTutorialModal
 } from './components.js';
 
 import {
@@ -60,6 +61,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   registerServiceWorker();
   await checkAuthState();
   renderCurrentTab();
+
+  // If user is already authenticated or guest, show tutorial once if not seen yet
+  if ((state.currentUser || state.isGuestMode) && !localStorage.getItem('thejamonapp_seen_tutorial_v1')) {
+    setTimeout(() => openCanvasTutorialModal(true), 600);
+  }
 });
 
 async function checkAuthState() {
@@ -258,6 +264,11 @@ function attachAuthListeners() {
         }
         await checkAuthState();
         renderCurrentTab();
+
+        // Trigger tutorial automatically on login/signup if not seen
+        if (!localStorage.getItem('thejamonapp_seen_tutorial_v1')) {
+          setTimeout(() => openCanvasTutorialModal(true), 500);
+        }
       } catch (err) {
         showToast(err.message || 'Error en la autenticación', 'danger');
       }
@@ -292,6 +303,11 @@ function attachAuthListeners() {
       showToast('Continuando en Modo Invitado local', 'info');
       updateAuthUserWidget();
       renderCurrentTab();
+
+      // Trigger tutorial for first time guests
+      if (!localStorage.getItem('thejamonapp_seen_tutorial_v1')) {
+        setTimeout(() => openCanvasTutorialModal(true), 500);
+      }
     });
   }
 
@@ -340,6 +356,75 @@ function openSupabaseConfigModal() {
 }
 
 // -------------------------------------------------------------
+// CANVAS STUDENT LAUNCHER & TUTORIAL MODAL
+// -------------------------------------------------------------
+export function launchCanvasApp() {
+  const customUrl = 'canvas-student://udd.instructure.com';
+  const webFallbackUrl = 'https://udd.instructure.com';
+  
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    showToast('Abriendo la App Canvas Student...', 'info');
+    
+    // Attempt custom URI scheme
+    window.location.href = customUrl;
+    
+    // Fallback: if browser remains active after 1.4s, redirect to web login
+    setTimeout(() => {
+      if (document.hidden || document.webkitHidden) return;
+      window.open(webFallbackUrl, '_blank');
+    }, 1400);
+  } else {
+    showToast('Abriendo Canvas UDD en el navegador...', 'info');
+    window.open(webFallbackUrl, '_blank');
+  }
+}
+
+export function openCanvasTutorialModal(isAuto = false) {
+  if (isAuto && localStorage.getItem('thejamonapp_seen_tutorial_v1') === 'true') {
+    return;
+  }
+
+  if (document.getElementById('canvas-tutorial-modal')) return;
+
+  const modalContainer = document.createElement('div');
+  modalContainer.id = 'canvas-tutorial-modal-wrapper';
+  modalContainer.innerHTML = renderCanvasTutorialModal();
+  document.body.appendChild(modalContainer);
+  if (window.lucide) window.lucide.createIcons();
+
+  const closeBtn = document.getElementById('close-tutorial-modal-btn');
+  const closeActionBtn = document.getElementById('close-tutorial-action-btn');
+  const goToUpload = document.getElementById('tutorial-go-to-upload');
+  const openCanvasAppBtn = document.getElementById('tutorial-open-canvas-app-btn');
+  const dontShowCheckbox = document.getElementById('dont-show-tutorial-checkbox');
+
+  const closeModal = (markSeen = false) => {
+    if (markSeen || (dontShowCheckbox && dontShowCheckbox.checked)) {
+      localStorage.setItem('thejamonapp_seen_tutorial_v1', 'true');
+    }
+    modalContainer.remove();
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', () => closeModal(false));
+  if (closeActionBtn) closeActionBtn.addEventListener('click', () => closeModal(true));
+  
+  if (goToUpload) {
+    goToUpload.addEventListener('click', () => {
+      closeModal(true);
+      switchTab('syllabus');
+    });
+  }
+
+  if (openCanvasAppBtn) {
+    openCanvasAppBtn.addEventListener('click', () => {
+      launchCanvasApp();
+    });
+  }
+}
+
+// -------------------------------------------------------------
 // DASHBOARD EVENT HANDLERS
 // -------------------------------------------------------------
 function attachDashboardListeners() {
@@ -349,6 +434,20 @@ function attachDashboardListeners() {
   if (welcomeUploadBtn) {
     welcomeUploadBtn.addEventListener('click', () => {
       switchTab('syllabus');
+    });
+  }
+
+  const welcomeTutBtn = document.getElementById('welcome-tutorial-btn');
+  if (welcomeTutBtn) {
+    welcomeTutBtn.addEventListener('click', () => {
+      openCanvasTutorialModal(false);
+    });
+  }
+
+  const dashTutBtn = document.getElementById('dashboard-tutorial-btn');
+  if (dashTutBtn) {
+    dashTutBtn.addEventListener('click', () => {
+      openCanvasTutorialModal(false);
     });
   }
 
@@ -406,12 +505,34 @@ function attachSyllabusListeners() {
   const processBtn = document.getElementById('process-text-btn');
   const geminiInput = document.getElementById('gemini-key-input');
   const saveGeminiBtn = document.getElementById('save-gemini-key-btn');
+  const syllabusTutBtn = document.getElementById('syllabus-open-tutorial-btn');
+  const syllabusCanvasBtn = document.getElementById('syllabus-quick-canvas-btn');
+  const toggleKeyBtn = document.getElementById('toggle-custom-key-btn');
+  const keyDrawer = document.getElementById('custom-key-drawer');
+
+  if (toggleKeyBtn && keyDrawer) {
+    toggleKeyBtn.addEventListener('click', () => {
+      keyDrawer.classList.toggle('hidden');
+    });
+  }
+
+  if (syllabusTutBtn) {
+    syllabusTutBtn.addEventListener('click', () => {
+      openCanvasTutorialModal(false);
+    });
+  }
+
+  if (syllabusCanvasBtn) {
+    syllabusCanvasBtn.addEventListener('click', () => {
+      launchCanvasApp();
+    });
+  }
 
   if (saveGeminiBtn && geminiInput) {
     saveGeminiBtn.addEventListener('click', () => {
       const key = geminiInput.value.trim();
       saveGeminiApiKey(key);
-      showToast(key ? '¡Gemini API Key guardada! IA lista para analizar' : 'API Key eliminada (Modo Local)', 'success');
+      showToast(key ? '¡Gemini API Key personalizada guardada!' : 'Usando API Key compartida del sistema', 'success');
       renderCurrentTab();
     });
   }

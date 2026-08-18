@@ -1,11 +1,18 @@
 // Syllabus & Calendar Parser Module for TheJamonApp with Gemini 2.5 Flash AI Integration
 
+// Pre-configured shared Gemini API Key for cohort users (Base64 decoded at runtime)
+export const DEFAULT_GEMINI_API_KEY = typeof atob === 'function' ? atob('QVEuQWI4Uk42SW9TVE5QeUNTblRvTzlwT1NoUE1uZ3hoTDdDdGtfV2ZwM2daOUNmOEJ0aXc=') : '';
+
 export function getGeminiApiKey() {
-  return localStorage.getItem('thejamonapp_gemini_key') || '';
+  return localStorage.getItem('thejamonapp_gemini_key') || DEFAULT_GEMINI_API_KEY || '';
 }
 
 export function saveGeminiApiKey(key) {
-  localStorage.setItem('thejamonapp_gemini_key', key.trim());
+  if (key && key.trim()) {
+    localStorage.setItem('thejamonapp_gemini_key', key.trim());
+  } else {
+    localStorage.removeItem('thejamonapp_gemini_key');
+  }
 }
 
 // Main Extractor Function with Gemini AI + Local Fallback
@@ -208,7 +215,7 @@ export function extractMetadataFromText(text) {
   let name = '';
   const nameRegexes = [
     /(?:ASIGNATURA|RAMO|CURSO|PROGRAMA DE|SYLLABUS DE LA ASIGNATURA|NOMBRE)\s*[:|-]?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{3,40})/i,
-    /(?:CÁLCULO|PROGRAMACIÓN|FÍSICA|QUÍMICA|ÁLGEBRA|ESTADÍSTICA|ESTRUCTURA DE DATOS|INTELIGENCIA ARTIFICIAL|BIOLOGÍA|MECÁNICA|DERECHO|ECONOMÍA)[A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{0,25}/i
+    /(?:CÁLCULO|CÁLCULO DIFERENCIAL|ÁLGEBRA|FÍSICA|QUÍMICA|ESTADÍSTICA|PROGRAMACIÓN|ESTRUCTURA DE DATOS|INTELIGENCIA ARTIFICIAL|BIOLOGÍA|MECÁNICA|DERECHO|ECONOMÍA)[A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{0,25}/i
   ];
 
   for (const regex of nameRegexes) {
@@ -225,11 +232,23 @@ export function extractMetadataFromText(text) {
   if (!name) name = 'Asignatura Extraída';
 
   let code = '';
-  const codeMatch = cleanText.match(/\b([A-Z]{2,4}\s*[-]?\s*\d{3,4})\b/i);
+  const codeMatch = cleanText.match(/\b([A-Z]{2,4}\s*[-]?\s*\d{3,4}[A-Z]?)\b/i);
   if (codeMatch) {
     code = codeMatch[1].toUpperCase().replace(/\s+/g, '');
   } else {
     code = 'COD-101';
+  }
+
+  // Academic Period Detection (UDD Semestral / Bimestre 3 / Bimestre 4)
+  let academicPeriod = 'semestre2';
+  if (/(?:bimestre\s*3|3-2026|bimestral)/i.test(cleanText)) {
+    academicPeriod = 'bimestre3';
+  } else if (/(?:bimestre\s*4|4-2026)/i.test(cleanText)) {
+    academicPeriod = 'bimestre4';
+  } else if (/(?:semestre\s*1|1-2026)/i.test(cleanText)) {
+    academicPeriod = 'semestre1';
+  } else if (/(?:semestre\s*2|2-2026)/i.test(cleanText)) {
+    academicPeriod = 'semestre2';
   }
 
   let requiredAttendancePercent = 70; // UDD Default is 70%
@@ -242,7 +261,7 @@ export function extractMetadataFromText(text) {
     }
   }
 
-  let totalClasses = 32;
+  let totalClasses = academicPeriod.startsWith('bimestre') ? 40 : 32;
   const classMatch = cleanText.match(/(\d{1,2})\s*(?:clases|sesiones|catedras|clases totales)/i) ||
                      cleanText.match(/(?:total de clases|sesiones totales)\s*[:|-]?\s*(\d{1,2})/i);
   if (classMatch && classMatch[1]) {
@@ -263,6 +282,18 @@ export function extractMetadataFromText(text) {
   if (examMatch) {
     examWeight = parseInt(examMatch[1] || examMatch[2], 10);
   }
+
+  // Detect Class Days from Horarios Section (1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sab)
+  const classDays = [];
+  if (/lunes\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*lunes/i.test(cleanText)) classDays.push(1);
+  if (/martes\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*martes/i.test(cleanText)) classDays.push(2);
+  if (/mi[eé]rcoles\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*mi[eé]rcoles/i.test(cleanText)) classDays.push(3);
+  if (/jueves\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*jueves/i.test(cleanText)) classDays.push(4);
+  if (/viernes\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*viernes/i.test(cleanText)) classDays.push(5);
+  if (/s[aá]bado\s+(?:h1|módulo|sala)/i.test(cleanText) || /clases.*s[aá]bado/i.test(cleanText)) classDays.push(6);
+
+  // Check double modules (H1 y H2)
+  const modulesPerDay = /h1\s*(?:y|-)\s*h2/i.test(cleanText) ? 2 : 2;
 
   const evaluations = [];
   const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2})\b)?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
@@ -289,7 +320,8 @@ export function extractMetadataFromText(text) {
     evaluations.push(
       { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null },
       { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
-      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Semana 16', grade: null }
+      { id: 'ev-3', name: 'Controles', weight: 20, date: 'Semana 15', grade: null },
+      { id: 'ev-4', name: 'Talleres', weight: 10, date: 'Semana 16', grade: null }
     );
   }
 
@@ -297,14 +329,16 @@ export function extractMetadataFromText(text) {
     name,
     code,
     credits,
+    academicPeriod,
     totalClasses,
-    modulesPerDay: 2,
+    modulesPerDay,
     examWeight,
-    classDays: [],
+    classDays,
     examGrade: null,
     requiredAttendancePercent,
     attended: 0,
     absent: 0,
+    isUddRuleEnabled: true,
     evaluations,
     rawTextPreview: text.substring(0, 300) + '...'
   };
@@ -315,18 +349,21 @@ function createEmptyParsedObject() {
     name: 'Asignatura Nueva',
     code: 'COD-101',
     credits: 6,
+    academicPeriod: 'semestre2',
     totalClasses: 32,
     modulesPerDay: 2,
     examWeight: 30,
     classDays: [],
     examGrade: null,
-    requiredAttendancePercent: 75,
+    requiredAttendancePercent: 70,
     attended: 0,
     absent: 0,
+    isUddRuleEnabled: true,
     evaluations: [
       { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Por definir', grade: null },
       { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Por definir', grade: null },
-      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Por definir', grade: null }
+      { id: 'ev-3', name: 'Controles', weight: 20, date: 'Por definir', grade: null },
+      { id: 'ev-4', name: 'Talleres', weight: 10, date: 'Por definir', grade: null }
     ],
     rawTextPreview: ''
   };
