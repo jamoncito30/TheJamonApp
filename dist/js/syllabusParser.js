@@ -1,54 +1,14 @@
-// Syllabus & Calendar Parser Module for MarginApp
+// Syllabus & Calendar Parser Module for TheJamonApp with Gemini 2.5 Flash AI Integration
 
-// Preset Demo Syllabus Texts for instant testing
-export const DEMO_SYLLABUS_SAMPLES = [
-  {
-    title: 'Syllabus Demo: Cálculo Avanzado',
-    text: `UNIVERSIDAD NACIONAL DE INGENIERÍA
-SYLLABUS DE LA ASIGNATURA: CÁLCULO III (MAT-301)
-Créditos: 6 SCT
-Profesor: Dr. Fernando Alarcón
+export function getGeminiApiKey() {
+  return localStorage.getItem('thejamonapp_gemini_key') || '';
+}
 
-1. REQUISITOS DE ASISTENCIA:
-El curso exige un 75% de asistencia obligatoria a las clases lectivas para tener derecho a presentar el examen final. El semestre consta de 32 clases en total (16 semanas, 2 clases por semana).
+export function saveGeminiApiKey(key) {
+  localStorage.setItem('thejamonapp_gemini_key', key.trim());
+}
 
-2. EVALUACIONES Y PONDERACIONES:
-- Certamen 1 (30%): 24 de Septiembre
-- Certamen 2 (35%): 05 de Noviembre
-- Examen Final (35%): 18 de Diciembre`
-  },
-  {
-    title: 'Syllabus Demo: Inteligencia Artificial',
-    text: `DEPARTAMENTO DE CIENCIAS DE LA COMPUTACIÓN
-ASIGNATURA: INTELIGENCIA ARTIFICIAL Y MACHINE LEARNING (CC-502)
-Créditos: 8 SCT - Total Clases Totales: 36 sesiones
-
-REGLAMENTO INTERNO:
-- Asistencia mínima requerida: 80% de asistencia presencial.
-- Faltas permitidas máximas calculadas según crédito institucional.
-
-CALENDARIO DE EVALUACIONES:
-* Proyecto Parte 1 (25%): Redes Neuronales - 12 de Octubre
-* Proyecto Parte 2 (35%): Deep Learning - 16 de Noviembre
-* Examen / Defensa Final (40%): 20 de Diciembre`
-  },
-  {
-    title: 'Syllabus Demo: Química Orgánica',
-    text: `FACULTAD DE CIENCIAS QUÍMICAS Y FARMACÉUTICAS
-PROGRAMA DE ASIGNATURA: QUÍMICA ORGÁNICA I (QUI-202)
-Créditos: 5 Créditos SCT | Duración: 28 clases en el semestre
-
-ASISTENCIA A LABORATORIOS Y CÁTEDRAS:
-Exigencia de asistencia: 85% a laboratorios y cátedras.
-
-EVALUACIONES:
-- Solemne 1: 30% (Semana 6)
-- Solemne 2: 30% (Semana 12)
-- Laboratorio Práctico: 40% (Semana 15)`
-  }
-];
-
-// Main Extractor Function
+// Main Extractor Function with Gemini AI + Local Fallback
 export async function parseSyllabusContent(inputSource) {
   let rawText = '';
 
@@ -62,7 +22,95 @@ export async function parseSyllabusContent(inputSource) {
     }
   }
 
-  return extractMetadataFromText(rawText);
+  const apiKey = getGeminiApiKey();
+
+  if (apiKey) {
+    try {
+      console.log('Procesando Syllabus mediante la API de Google Gemini...');
+      return await parseWithGeminiAPI(rawText, apiKey);
+    } catch (err) {
+      console.warn('Falló el análisis con Gemini API, usando analizador local fallback:', err);
+      // Fallback to local regex parser
+      return extractMetadataFromText(rawText);
+    }
+  } else {
+    return extractMetadataFromText(rawText);
+  }
+}
+
+// Google Gemini 2.5 Flash API Call with JSON Structured Output
+async function parseWithGeminiAPI(textContent, apiKey) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  const systemPrompt = `Eres un sistema experto en análisis de syllabus y calendarizaciones universitarias en Chile (con énfasis en la Universidad del Desarrollo UDD).
+Analiza el siguiente texto de syllabus y extrae la información requerida en un objeto JSON estricto con las siguientes claves:
+- name (string): Nombre exacto del ramo o asignatura.
+- code (string): Código de la asignatura (ej: MAT-201, INF-102).
+- credits (number): Créditos SCT (número).
+- requiredAttendancePercent (number): Porcentaje de asistencia exigido (ej: 75).
+- totalClasses (number): Total de días o sesiones de clases en el semestre (ej: 32).
+- modulesPerDay (number): 2 si se imparte en bloques/módulos dobles (ej: H1-H2 UDD) o 1 si es módulo único.
+- evaluations (array): Lista de certámenes o evaluaciones con formato [{ name: string, weight: number, date: string }]. Las ponderaciones de las evaluaciones deben sumar 100%.
+
+Responde ÚNICAMENTE con el objeto JSON estructurado.`;
+
+  const payload = {
+    contents: [
+      {
+        parts: [
+          { text: systemPrompt },
+          { text: `Texto del Syllabus a analizar:\n${textContent.substring(0, 10000)}` }
+        ]
+      }
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.1
+    }
+  };
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errJson = await response.json().catch(() => ({}));
+    throw new Error(errJson.error?.message || `Error HTTP ${response.status} en la API de Gemini`);
+  }
+
+  const data = await response.json();
+  const rawJsonStr = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!rawJsonStr) {
+    throw new Error('Respuesta vacía de la API de Gemini');
+  }
+
+  const parsed = JSON.parse(rawJsonStr);
+
+  return {
+    name: parsed.name || 'Asignatura Extraída (Gemini AI)',
+    code: parsed.code || 'COD-101',
+    credits: Number(parsed.credits) || 6,
+    requiredAttendancePercent: Number(parsed.requiredAttendancePercent) || 75,
+    totalClasses: Number(parsed.totalClasses) || 32,
+    modulesPerDay: Number(parsed.modulesPerDay) || 2,
+    attended: 0,
+    absent: 0,
+    isUddRuleEnabled: true,
+    evaluations: Array.isArray(parsed.evaluations) ? parsed.evaluations.map((ev, i) => ({
+      id: `ev-gemini-${Date.now()}-${i}`,
+      name: ev.name || `Evaluación ${i+1}`,
+      weight: Number(ev.weight) || 25,
+      date: ev.date || 'Por definir',
+      grade: null
+    })) : [
+      { id: 'ev-1', name: 'Certamen 1', weight: 30, date: 'Semana 6', grade: null },
+      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
+      { id: 'ev-3', name: 'Examen Final', weight: 35, date: 'Semana 16', grade: null }
+    ]
+  };
 }
 
 // Read File as Plain Text
@@ -96,7 +144,7 @@ async function extractTextFromPDF(file) {
   }
 }
 
-// Extract Structured Metadata from Raw Text using regex patterns
+// Local Pattern Matching Fallback
 export function extractMetadataFromText(text) {
   if (!text || typeof text !== 'string') {
     return createEmptyParsedObject();
@@ -104,7 +152,6 @@ export function extractMetadataFromText(text) {
 
   const cleanText = text.replace(/\r\n/g, '\n');
 
-  // 1. Extract Course Name
   let name = '';
   const nameRegexes = [
     /(?:ASIGNATURA|RAMO|CURSO|PROGRAMA DE|SYLLABUS DE LA ASIGNATURA|NOMBRE)\s*[:|-]?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{3,40})/i,
@@ -124,7 +171,6 @@ export function extractMetadataFromText(text) {
 
   if (!name) name = 'Asignatura Extraída';
 
-  // 2. Extract Course Code
   let code = '';
   const codeMatch = cleanText.match(/\b([A-Z]{2,4}\s*[-]?\s*\d{3,4})\b/i);
   if (codeMatch) {
@@ -133,8 +179,7 @@ export function extractMetadataFromText(text) {
     code = 'COD-101';
   }
 
-  // 3. Extract Required Attendance %
-  let requiredAttendancePercent = 75; // Default standard university requirement
+  let requiredAttendancePercent = 75;
   const attMatch = cleanText.match(/(?:asistencia|exigencia|asistencia obligatoria|asistencia mínima)\s*[:|-]?\s*(\d{2})\s*%/i) ||
                    cleanText.match(/(\d{2})\s*%\s*(?:de asistencia|asistencia)/i);
   if (attMatch && attMatch[1]) {
@@ -144,8 +189,7 @@ export function extractMetadataFromText(text) {
     }
   }
 
-  // 4. Extract Total Classes
-  let totalClasses = 32; // Default standard 16-week semester (2 classes/week)
+  let totalClasses = 32;
   const classMatch = cleanText.match(/(\d{1,2})\s*(?:clases|sesiones|catedras|clases totales)/i) ||
                      cleanText.match(/(?:total de clases|sesiones totales)\s*[:|-]?\s*(\d{1,2})/i);
   if (classMatch && classMatch[1]) {
@@ -155,14 +199,12 @@ export function extractMetadataFromText(text) {
     }
   }
 
-  // 5. Extract Credits
   let credits = 6;
   const credMatch = cleanText.match(/(\d{1,2})\s*(?:sct|créditos|creditos|uc)/i);
   if (credMatch && credMatch[1]) {
     credits = parseInt(credMatch[1], 10);
   }
 
-  // 6. Extract Evaluation Key Dates and Weights
   const evaluations = [];
   const evalRegex = /(Certamen|Prueba|Solemne|Examen|Tarea|Proyecto|Laboratorio|Control)\s*(\d{1,2})?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})%)\s*(?:[-:]?\s*([0-9]{1,2}\s+de\s+[a-zA-ZáéíóúÁÉÍÓÚ]+|\d{1,2}\/\d{1,2}))?/gi;
   
@@ -182,7 +224,6 @@ export function extractMetadataFromText(text) {
     });
   }
 
-  // Fallback evaluations if none detected
   if (evaluations.length === 0) {
     evaluations.push(
       { id: 'ev-1', name: 'Certamen 1', weight: 30, date: 'Semana 6', grade: null },
@@ -196,6 +237,7 @@ export function extractMetadataFromText(text) {
     code,
     credits,
     totalClasses,
+    modulesPerDay: 2,
     requiredAttendancePercent,
     attended: 0,
     absent: 0,
@@ -210,6 +252,7 @@ function createEmptyParsedObject() {
     code: 'COD-101',
     credits: 6,
     totalClasses: 32,
+    modulesPerDay: 2,
     requiredAttendancePercent: 75,
     attended: 0,
     absent: 0,

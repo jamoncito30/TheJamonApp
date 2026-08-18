@@ -1,6 +1,6 @@
 // iOS UI Component Renderer Functions for TheJamonApp
 import { calculateAttendanceMetrics, calculateCourseGrades, UDD_MODULES } from './storage.js';
-import { DEMO_SYLLABUS_SAMPLES } from './syllabusParser.js';
+import { getGeminiApiKey } from './syllabusParser.js';
 
 // 1. DASHBOARD VIEW (SEMÁFORO DE ASISTENCIA)
 export function renderDashboardView(courses) {
@@ -209,8 +209,11 @@ export function renderDashboardView(courses) {
   `;
 }
 
-// 2. SUBIR RAMOS / SYLLABUS READER VIEW
+// 2. SUBIR RAMOS / SYLLABUS READER VIEW WITH GEMINI AI OPTION
 export function renderSyllabusView() {
+  const apiKey = getGeminiApiKey();
+  const hasKey = !!apiKey;
+
   return `
     <div class="space-y-5 animate-ios-fade">
       <div>
@@ -219,6 +222,37 @@ export function renderSyllabusView() {
           Subir Ramos & Calendarización
         </h2>
         <p class="text-xs text-slate-400 mt-1">Sube o pega la calendarización de tus asignaturas para extraer la asistencia exigida, certámenes y módulos.</p>
+      </div>
+
+      <!-- Gemini AI Integration Card -->
+      <div class="ios-card p-4 rounded-3xl border border-indigo-500/30 space-y-3 bg-gradient-to-br from-indigo-950/40 to-purple-950/30">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                Procesamiento IA con Gemini 2.5 Flash
+                <span class="text-[9px] font-extrabold ${hasKey ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'} px-1.5 py-0.5 rounded-full border">
+                  ${hasKey ? 'IA Activa ✨' : 'Opcional'}
+                </span>
+              </h3>
+              <p class="text-[10px] text-slate-400">Lee PDFs complejos, imágenes y calendarios UDD con máxima precisión</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <input type="password" id="gemini-key-input" value="${apiKey}" placeholder="Pega tu Gemini API Key aquí..." class="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:border-purple-500 focus:outline-none" />
+          <button id="save-gemini-key-btn" class="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/30 shrink-0">
+            Guardar
+          </button>
+        </div>
+        <p class="text-[9.5px] text-slate-400 flex items-center justify-between">
+          <span>Obtén una API Key gratuita en 10 segundos en Google AI Studio:</span>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 underline font-bold hover:text-purple-300">Conseguir Key →</a>
+        </p>
       </div>
 
       <!-- Drag & Drop Upload Zone -->
@@ -230,7 +264,7 @@ export function renderSyllabusView() {
         <h3 class="text-sm font-bold text-white">Arrastra aquí la Calendarización (PDF o TXT)</h3>
         <p class="text-xs text-slate-400 mt-1">o toca para seleccionar desde tu dispositivo</p>
         <span class="inline-block mt-3 px-3 py-1 bg-slate-800 text-slate-300 rounded-full text-[10px] font-semibold border border-slate-700">
-          Procesamiento seguro en tu dispositivo
+          Procesamiento ${hasKey ? 'con IA Gemini 2.5 Flash' : 'seguro en tu dispositivo'}
         </span>
       </div>
 
@@ -243,7 +277,7 @@ export function renderSyllabusView() {
         <textarea id="syllabus-text-input" rows="5" placeholder="Pega aquí el contenido del syllabus (asistencia %, total de clases, certámenes...)" class="w-full bg-slate-900 border border-slate-700/80 rounded-2xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500 transition-colors resize-none"></textarea>
         <button id="process-text-btn" class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 active:scale-95 transition-all flex items-center justify-center gap-2">
           <i data-lucide="sparkles" class="w-4 h-4"></i>
-          Analizar Calendarización
+          Analizar Calendarización ${hasKey ? 'con Gemini IA' : ''}
         </button>
       </div>
     </div>
@@ -312,7 +346,7 @@ export function renderConfirmationModal(parsedData) {
             
             <div class="grid grid-cols-2 gap-2 pt-1">
               <label class="p-2 bg-slate-800 rounded-xl border border-slate-700 flex items-center gap-2 cursor-pointer hover:border-indigo-500 transition-colors">
-                <input type="radio" name="form-modules-per-day" value="2" checked class="text-indigo-600 focus:ring-0" />
+                <input type="radio" name="form-modules-per-day" value="2" ${parsedData.modulesPerDay === 2 ? 'checked' : ''} class="text-indigo-600 focus:ring-0" />
                 <div>
                   <span class="text-xs font-bold text-white block">Por Módulo (2 al día)</span>
                   <span class="text-[9px] text-slate-400 block">Formato UDD (H1-H2, etc)</span>
@@ -320,7 +354,7 @@ export function renderConfirmationModal(parsedData) {
               </label>
 
               <label class="p-2 bg-slate-800 rounded-xl border border-slate-700 flex items-center gap-2 cursor-pointer hover:border-indigo-500 transition-colors">
-                <input type="radio" name="form-modules-per-day" value="1" class="text-indigo-600 focus:ring-0" />
+                <input type="radio" name="form-modules-per-day" value="1" ${parsedData.modulesPerDay === 1 ? 'checked' : ''} class="text-indigo-600 focus:ring-0" />
                 <div>
                   <span class="text-xs font-bold text-white block">Por Clase (1 al día)</span>
                   <span class="text-[9px] text-slate-400 block">1 asistencia por sesión</span>

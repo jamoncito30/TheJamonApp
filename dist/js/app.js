@@ -1,4 +1,4 @@
-// Main Application Controller for MarginApp PWA
+// Main Application Controller for TheJamonApp PWA
 import { 
   getCourses, 
   saveCourse, 
@@ -11,8 +11,8 @@ import {
 
 import { 
   parseSyllabusContent, 
-  DEMO_SYLLABUS_SAMPLES,
-  extractMetadataFromText
+  extractMetadataFromText,
+  saveGeminiApiKey
 } from './syllabusParser.js';
 
 import { 
@@ -136,15 +136,6 @@ function attachDashboardListeners() {
     });
   }
 
-  const demoBtn = document.getElementById('dashboard-load-demo-btn');
-  if (demoBtn) {
-    demoBtn.addEventListener('click', () => {
-      state.courses = resetToDemoData();
-      showToast('¡Ramos de prueba cargados correctamente!', 'success');
-      renderCurrentTab();
-    });
-  }
-
   const histBtn = document.getElementById('view-history-btn');
   if (histBtn) {
     histBtn.addEventListener('click', () => {
@@ -152,7 +143,7 @@ function attachDashboardListeners() {
     });
   }
 
-  // Attendance Action Buttons (Support for 1 or 2 modules per click)
+  // Attendance Action Buttons
   mainEl.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -190,13 +181,24 @@ function attachDashboardListeners() {
 }
 
 // -------------------------------------------------------------
-// SYLLABUS / SUBIR RAMOS EVENT HANDLERS
+// SYLLABUS / SUBIR RAMOS EVENT HANDLERS WITH GEMINI API KEY
 // -------------------------------------------------------------
 function attachSyllabusListeners() {
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('syllabus-file-input');
   const textInput = document.getElementById('syllabus-text-input');
   const processBtn = document.getElementById('process-text-btn');
+  const geminiInput = document.getElementById('gemini-key-input');
+  const saveGeminiBtn = document.getElementById('save-gemini-key-btn');
+
+  if (saveGeminiBtn && geminiInput) {
+    saveGeminiBtn.addEventListener('click', () => {
+      const key = geminiInput.value.trim();
+      saveGeminiApiKey(key);
+      showToast(key ? '¡Gemini API Key guardada! IA lista para analizar' : 'API Key eliminada (Modo Local)', 'success');
+      renderCurrentTab();
+    });
+  }
 
   if (dropZone && fileInput) {
     dropZone.addEventListener('click', () => fileInput.click());
@@ -227,28 +229,21 @@ function attachSyllabusListeners() {
   }
 
   if (processBtn && textInput) {
-    processBtn.addEventListener('click', () => {
+    processBtn.addEventListener('click', async () => {
       const val = textInput.value.trim();
       if (!val) {
         showToast('Por favor escribe o pega texto de la calendarización primero.', 'warning');
         return;
       }
-      const parsed = extractMetadataFromText(val);
-      openConfirmationModal(parsed);
-    });
-  }
-
-  document.querySelectorAll('.demo-sample-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = parseInt(btn.getAttribute('data-sample-idx'), 10);
-      const sample = DEMO_SYLLABUS_SAMPLES[idx];
-      if (sample) {
-        const parsed = extractMetadataFromText(sample.text);
-        showToast(`Analizando: ${sample.title}`, 'info');
+      showToast('Analizando con IA...', 'info');
+      try {
+        const parsed = await parseSyllabusContent(val);
         openConfirmationModal(parsed);
+      } catch (err) {
+        showToast(err.message || 'Error al analizar la calendarización', 'danger');
       }
     });
-  });
+  }
 }
 
 async function processFile(file) {
@@ -446,22 +441,13 @@ function attachCoursesListeners() {
     });
   });
 
-  const resetDemoBtn = document.getElementById('reset-all-demo-btn');
-  if (resetDemoBtn) {
-    resetDemoBtn.addEventListener('click', () => {
-      state.courses = resetToDemoData();
-      showToast('Datos de ejemplo restablecidos', 'success');
-      renderCurrentTab();
-    });
-  }
-
   const exportBtn = document.getElementById('export-json-btn');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.courses, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `MarginApp_Backup_${new Date().toISOString().slice(0,10)}.json`);
+      downloadAnchor.setAttribute("download", `TheJamonApp_Backup_${new Date().toISOString().slice(0,10)}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -510,15 +496,6 @@ function setupGlobalListeners() {
       } else {
         container.className = "w-full h-full bg-slate-900 overflow-hidden flex flex-col relative transition-all duration-300";
       }
-    });
-  }
-
-  const seedBtn = document.getElementById('seed-demo-btn');
-  if (seedBtn) {
-    seedBtn.addEventListener('click', () => {
-      state.courses = resetToDemoData();
-      showToast('Ramos de prueba cargados', 'success');
-      renderCurrentTab();
     });
   }
 }
