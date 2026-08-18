@@ -380,6 +380,9 @@ export function calculateCourseGrades(course, passingGrade = 4.0) {
   }
 
   return {
+    presentationGrade: presentationGradeValue !== null ? presentationGradeValue.toFixed(2) : null,
+    presentationWeight,
+    examWeight,
     currentAverage: currentAverage !== null ? currentAverage.toFixed(2) : null,
     totalGradedWeight: totalCourseGradedWeight,
     totalUngradedWeight: totalCourseUngradedWeight,

@@ -512,21 +512,6 @@ export function renderGradeDetails(course) {
     `;
   }).join('');
 
-  const examHtml = `
-    <div class="bg-indigo-950/40 p-3 rounded-2xl border border-indigo-500/30 flex items-center justify-between gap-2 mt-4 shadow-lg shadow-indigo-900/20">
-      <div class="flex-1">
-        <h4 class="text-xs font-bold text-indigo-100 flex items-center gap-1.5">
-          <i data-lucide="graduation-cap" class="w-4 h-4 text-indigo-400"></i>
-          Examen Final
-        </h4>
-        <span class="text-[10px] text-indigo-300 font-semibold">Ponderación: ${course.examWeight || 30}%</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <input type="number" step="0.1" min="1.0" max="7.0" value="${course.examGrade !== null && course.examGrade !== undefined ? course.examGrade : ''}" id="exam-grade-input" class="w-16 bg-slate-900 border border-indigo-500/50 text-white font-extrabold text-sm text-center rounded-xl py-1.5 focus:border-indigo-400 focus:outline-none" placeholder="1.0 - 7.0" />
-      </div>
-    </div>
-  `;
-
   return `
     <!-- UDD Special Rule Banner -->
     <div class="bg-slate-900/90 p-4 rounded-3xl border border-blue-500/30 flex items-center justify-between space-x-3">
@@ -544,37 +529,76 @@ export function renderGradeDetails(course) {
       </label>
     </div>
 
-    <!-- Promedio KPI Box -->
-    <div class="ios-glass p-4 rounded-3xl grid grid-cols-2 gap-3 text-center border border-slate-800">
-      <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700/50">
-        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Promedio Ponderado</span>
-        <div class="text-2xl font-extrabold ${metrics.currentAverage >= 4.0 ? 'text-emerald-400' : 'text-rose-400'} mt-1">
-          ${metrics.currentAverage !== null ? metrics.currentAverage : 'S/I'}
+    <!-- RECUADRO 1: Evaluaciones de Presentación (70% de la Nota Final) -->
+    <div class="ios-card p-4 rounded-3xl space-y-3 border border-slate-800">
+      <div class="flex items-center justify-between px-1">
+        <div>
+          <h3 class="text-xs font-bold text-slate-200">Notas de Presentación</h3>
+          <p class="text-[10px] text-blue-400 font-semibold">Suman 100% de la Nota de Presentación (${metrics.presentationWeight || 70}% Final)</p>
         </div>
-        <span class="text-[9px] text-slate-500 font-medium">Evaluado: ${metrics.totalGradedWeight}%</span>
+        
+        <div class="flex items-center gap-2">
+          <div class="bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-right">
+            <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">Promedio Presentación</span>
+            <span class="text-sm font-extrabold ${metrics.presentationGrade >= 4.0 ? 'text-emerald-400' : (metrics.presentationGrade !== null ? 'text-rose-400' : 'text-slate-400')}">
+              ${metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I'}
+            </span>
+          </div>
+
+          <button id="save-grades-btn" data-course-id="${course.id}" class="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-1">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
+          </button>
+        </div>
       </div>
 
-      <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700/50">
-        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Nota Examen Necesaria</span>
-        <div class="text-xl font-extrabold ${metrics.isExempt ? 'text-emerald-400' : 'text-amber-400'} mt-1">
-          ${metrics.requiredRemainingGrade !== null ? metrics.requiredRemainingGrade : 'Aprobado'}
-        </div>
-        <span class="text-[9px] text-slate-500 font-medium">${metrics.isExempt ? '¡Eximido UDD!' : 'para aprobar con 4.0'}</span>
+      <div class="space-y-2 pt-1 border-t border-slate-800/60">
+        ${rowsHtml}
       </div>
     </div>
 
-    <!-- Evaluations Table -->
-    <div class="ios-card p-4 rounded-3xl space-y-3">
-      <div class="flex items-center justify-between px-1">
-        <h3 class="text-xs font-bold text-slate-200">Notas Obtenidas (Escala 1.0 - 7.0)</h3>
-        <button id="save-grades-btn" data-course-id="${course.id}" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-1">
-          <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
-        </button>
+    <!-- RECUADRO 2: Examen Final & Calificación Definitiva -->
+    <div class="ios-card p-4 rounded-3xl space-y-4 border border-indigo-500/30 bg-gradient-to-b from-indigo-950/20 to-slate-900/90 shadow-xl shadow-indigo-950/20">
+      <div class="flex items-center justify-between border-b border-indigo-500/20 pb-3">
+        <h3 class="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
+          <i data-lucide="graduation-cap" class="w-4 h-4 text-indigo-400"></i>
+          Examen Final & Promedio Definitivo
+        </h3>
+        <span class="text-[10px] font-bold text-indigo-300 bg-indigo-500/20 px-2 py-0.5 rounded-md border border-indigo-500/30">
+          Examen ${metrics.examWeight || 30}%
+        </span>
       </div>
 
-      <div class="space-y-2">
-        ${rowsHtml}
-        ${examHtml}
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Input Examen -->
+        <div class="bg-slate-900/90 p-3 rounded-2xl border border-indigo-500/30 flex items-center justify-between gap-2">
+          <div>
+            <span class="text-[10px] font-bold text-indigo-200 block">Examen Final (${metrics.examWeight || 30}%)</span>
+            <span class="text-[9px] text-slate-400">Ingresa tu nota</span>
+          </div>
+          <input type="number" step="0.1" min="1.0" max="7.0" value="${course.examGrade !== null && course.examGrade !== undefined ? course.examGrade : ''}" id="exam-grade-input" class="w-16 bg-slate-800 border border-indigo-500/50 text-white font-extrabold text-sm text-center rounded-xl py-1.5 focus:border-indigo-400 focus:outline-none" placeholder="1.0 - 7.0" />
+        </div>
+
+        <!-- Requirement Box -->
+        <div class="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-center">
+          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block">Nota Examen Requerida</span>
+          <div class="text-base font-extrabold ${metrics.isExempt ? 'text-emerald-400' : 'text-amber-400'} mt-0.5">
+            ${metrics.requiredRemainingGrade !== null ? metrics.requiredRemainingGrade : 'Aprobado'}
+          </div>
+          <span class="text-[8px] text-slate-500 block">${metrics.isExempt ? '¡Eximido UDD!' : 'para aprobación (4.0)'}</span>
+        </div>
+      </div>
+
+      <!-- Final Grade Highlight Card -->
+      <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-700/80 flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-white block">Nota Final Ponderada (100%)</span>
+          <span class="text-[10px] text-slate-400">
+            ${metrics.presentationWeight || 70}% Presentación (${metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I'}) + ${metrics.examWeight || 30}% Examen
+          </span>
+        </div>
+        <div class="text-2xl font-black ${metrics.currentAverage >= 4.0 ? 'text-emerald-400' : (metrics.currentAverage !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 rounded-xl bg-slate-950 border border-slate-800">
+          ${metrics.currentAverage !== null ? metrics.currentAverage : 'S/I'}
+        </div>
       </div>
     </div>
   `;
