@@ -80,6 +80,30 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
     ],
     generationConfig: {
       responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          name: { type: "STRING" },
+          code: { type: "STRING" },
+          credits: { type: "INTEGER" },
+          requiredAttendancePercent: { type: "INTEGER" },
+          totalClasses: { type: "INTEGER" },
+          modulesPerDay: { type: "INTEGER" },
+          evaluations: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING" },
+                weight: { type: "INTEGER" },
+                date: { type: "STRING" }
+              },
+              required: ["name", "weight", "date"]
+            }
+          }
+        },
+        required: ["name", "code", "credits", "requiredAttendancePercent", "totalClasses", "modulesPerDay", "evaluations"]
+      },
       temperature: 0.1
     }
   };
@@ -215,20 +239,21 @@ export function extractMetadataFromText(text) {
   }
 
   let credits = 6;
-  const credMatch = cleanText.match(/(\d{1,2})\s*(?:sct|créditos|creditos|uc)/i);
-  if (credMatch && credMatch[1]) {
-    credits = parseInt(credMatch[1], 10);
+  const credMatch = cleanText.match(/(?:(?:sct|créditos|creditos|uc)\s*[:|-]?\s*(\d{1,2}))|(\d{1,2})\s*(?:sct|créditos|creditos|uc)/i);
+  if (credMatch) {
+    credits = parseInt(credMatch[1] || credMatch[2], 10);
   }
 
   const evaluations = [];
-  const evalRegex = /(Certamen|Prueba|Solemne|Examen|Tarea|Proyecto|Laboratorio|Control)\s*(\d{1,2})?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})%)\s*(?:[-:]?\s*([0-9]{1,2}\s+de\s+[a-zA-ZáéíóúÁÉÍÓÚ]+|\d{1,2}\/\d{1,2}))?/gi;
+  const evalRegex = /(Certamen|Prueba|Solemne|Examen|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*\d{1,2})?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
   
   let match;
   while ((match = evalRegex.exec(cleanText)) !== null) {
     const type = match[1];
-    const num = match[2] ? ` ${match[2]}` : '';
-    const weight = parseInt(match[3] || match[4] || '25', 10);
-    const date = match[5] ? match[5].trim() : 'Por definir';
+    let numStr = match[0].match(/N?[°\.]?\s*(\d{1,2})(?!\s*%)/i);
+    const num = numStr ? ` ${numStr[1]}` : '';
+    const weight = parseInt(match[2] || match[3] || '25', 10);
+    const date = 'Por definir';
 
     evaluations.push({
       id: `ev-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
