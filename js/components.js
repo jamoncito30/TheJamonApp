@@ -373,8 +373,26 @@ export function renderConfirmationModal(parsedData) {
             </div>
 
             <div>
-              <label class="text-[11px] font-bold text-slate-300">Días / Clases en Semestre</label>
-              <input type="number" id="form-total-classes" value="${parsedData.totalClasses}" min="1" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold mt-1 focus:border-blue-500 focus:outline-none" />
+              <label class="text-[11px] font-bold text-slate-300">Días de Clases (Semestre 2)</label>
+              <div class="grid grid-cols-3 gap-1 mt-1">
+                ${[
+                  {id:1, label:'Lun'},
+                  {id:2, label:'Mar'},
+                  {id:3, label:'Mié'},
+                  {id:4, label:'Jue'},
+                  {id:5, label:'Vie'},
+                  {id:6, label:'Sáb'}
+                ].map(day => `
+                  <label class="flex items-center gap-1 bg-slate-800 p-1.5 rounded-lg border border-slate-700 cursor-pointer hover:border-blue-500">
+                    <input type="checkbox" name="form-class-days" value="${day.id}" ${parsedData.classDays && parsedData.classDays.includes(day.id) ? 'checked' : ''} class="w-3 h-3 text-blue-600 rounded border-slate-600 focus:ring-0 focus:ring-offset-0 bg-slate-900" />
+                    <span class="text-[10px] font-bold text-slate-300">${day.label}</span>
+                  </label>
+                `).join('')}
+              </div>
+              <div id="dynamic-classes-info" class="mt-2 text-[9px] text-emerald-400 font-semibold bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
+                Selecciona días para calcular fechas y feriados.
+              </div>
+              <input type="hidden" id="form-total-classes" value="${parsedData.totalClasses}" />
             </div>
           </div>
 

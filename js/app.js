@@ -6,6 +6,7 @@ import {
   resetToDemoData, 
   logAttendance,
   calculateAttendanceMetrics,
+  calculateExactClasses,
   getHistory
 } from './storage.js';
 
@@ -301,6 +302,33 @@ function openConfirmationModal(parsedData) {
     });
   }
 
+  const classDaysCheckboxes = modalContainer.querySelectorAll('input[name="form-class-days"]');
+  const infoDiv = document.getElementById('dynamic-classes-info');
+  const hiddenTotalClasses = document.getElementById('form-total-classes');
+
+  const updateDynamicClasses = () => {
+    const selectedDays = Array.from(classDaysCheckboxes)
+      .filter(cb => cb.checked)
+      .map(cb => Number(cb.value));
+
+    if (selectedDays.length === 0) {
+      if (infoDiv) infoDiv.innerHTML = 'Selecciona días para calcular fechas y feriados.';
+      if (hiddenTotalClasses) hiddenTotalClasses.value = 32;
+      return;
+    }
+
+    const calc = calculateExactClasses(selectedDays);
+    if (infoDiv) {
+      infoDiv.innerHTML = `Calculado: <b>${calc.totalClasses} días</b> de clases reales.<br/><span class="text-slate-500">Se descontaron <b>${calc.holidaysFound} feriado(s)</b> de tus clases.</span>`;
+    }
+    if (hiddenTotalClasses) {
+      hiddenTotalClasses.value = calc.totalClasses;
+    }
+  };
+
+  classDaysCheckboxes.forEach(cb => cb.addEventListener('change', updateDynamicClasses));
+  updateDynamicClasses();
+
   if (form) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -310,6 +338,9 @@ function openConfirmationModal(parsedData) {
       const updatedCredits = parseInt(document.getElementById('form-credits').value, 10);
       const updatedReqAtt = parseInt(document.getElementById('form-req-att').value, 10);
       const updatedTotalClasses = parseInt(document.getElementById('form-total-classes').value, 10);
+      const updatedClassDays = Array.from(modalContainer.querySelectorAll('input[name="form-class-days"]'))
+        .filter(cb => cb.checked)
+        .map(cb => Number(cb.value));
       const updatedExamWeight = parseInt(document.getElementById('form-exam-weight').value, 10);
       const modulesPerDay = parseInt(document.querySelector('input[name="form-modules-per-day"]:checked')?.value || '2', 10);
       const isUddRuleEnabled = document.getElementById('form-udd-rule')?.checked ?? true;
@@ -341,6 +372,7 @@ function openConfirmationModal(parsedData) {
         credits: updatedCredits,
         requiredAttendancePercent: updatedReqAtt,
         totalClasses: updatedTotalClasses,
+        classDays: updatedClassDays,
         modulesPerDay: modulesPerDay,
         examWeight: updatedExamWeight || 30,
         examGrade: null,

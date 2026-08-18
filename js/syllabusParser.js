@@ -58,6 +58,7 @@ Reglas de extracción críticas:
 4. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
 5. totalClasses (number): Por defecto 32 (16 semanas x 2).
 6. requiredAttendancePercent (number): Busca % de asistencia (ej: "Sobre 70%" -> 70, "75%" -> 75). Por defecto 70.
+7. classDays (array): Extrae los días de la semana en los que se imparte la clase y conviértelos a números: 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado. Si no hay horario, retorna [].
 
 El JSON debe tener EXACTAMENTE esta estructura:
 {
@@ -68,6 +69,7 @@ El JSON debe tener EXACTAMENTE esta estructura:
   "totalClasses": number,
   "modulesPerDay": number,
   "examWeight": number,
+  "classDays": number[],
   "evaluations": [ { "name": "string", "weight": number, "date": "string" } ]
 }
 
@@ -94,6 +96,10 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
           totalClasses: { type: "INTEGER" },
           modulesPerDay: { type: "INTEGER" },
           examWeight: { type: "INTEGER" },
+          classDays: {
+            type: "ARRAY",
+            items: { type: "INTEGER" }
+          },
           evaluations: {
             type: "ARRAY",
             items: {
@@ -107,7 +113,7 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
             }
           }
         },
-        required: ["name", "code", "credits", "requiredAttendancePercent", "totalClasses", "modulesPerDay", "examWeight", "evaluations"]
+        required: ["name", "code", "credits", "requiredAttendancePercent", "totalClasses", "modulesPerDay", "examWeight", "classDays", "evaluations"]
       },
       temperature: 0.1
     }
@@ -141,6 +147,7 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
     totalClasses: Number(parsed.totalClasses) || 32,
     modulesPerDay: Number(parsed.modulesPerDay) || 2,
     examWeight: Number(parsed.examWeight) || 30,
+    classDays: Array.isArray(parsed.classDays) ? parsed.classDays : [],
     examGrade: null,
     attended: 0,
     absent: 0,
@@ -293,6 +300,7 @@ export function extractMetadataFromText(text) {
     totalClasses,
     modulesPerDay: 2,
     examWeight,
+    classDays: [],
     examGrade: null,
     requiredAttendancePercent,
     attended: 0,
@@ -310,6 +318,7 @@ function createEmptyParsedObject() {
     totalClasses: 32,
     modulesPerDay: 2,
     examWeight: 30,
+    classDays: [],
     examGrade: null,
     requiredAttendancePercent: 75,
     attended: 0,

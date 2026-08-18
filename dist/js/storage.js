@@ -75,8 +75,74 @@ export function deleteCourse(courseId) {
 }
 
 // Math logic considering Modules per day
+// UDD Calendar Engine 2026 (Semestre 2)
+export const UDD_CALENDAR_2026 = {
+  startDate: new Date('2026-08-03T00:00:00-04:00'),
+  endDate: new Date('2026-11-24T00:00:00-04:00'),
+  holidays: [
+    '2026-08-15', // Asunción de la Virgen
+    '2026-09-11', // Suspensión PM
+    '2026-09-12', // Suspensión UDD
+    '2026-09-13', // Suspensión UDD
+    '2026-09-14', // Suspensión UDD
+    '2026-09-15', // Suspensión UDD
+    '2026-09-16', // Suspensión UDD
+    '2026-09-17', // Suspensión UDD
+    '2026-09-18', // Fiestas Patrias
+    '2026-09-19', // Fiestas Patrias
+    '2026-10-12', // Encuentro Dos Mundos
+    '2026-10-31', // Día Iglesias Evangélicas
+    '2026-11-01', // Todos los Santos
+  ]
+};
+
+export function calculateExactClasses(classDaysArray) {
+  if (!classDaysArray || classDaysArray.length === 0) return { totalClasses: 32, holidaysFound: 0 };
+
+  const start = new Date(UDD_CALENDAR_2026.startDate);
+  const end = new Date(UDD_CALENDAR_2026.endDate);
+  const holidaysSet = new Set(UDD_CALENDAR_2026.holidays);
+
+  let totalClassesCount = 0;
+  let holidaysEncounteredCount = 0;
+  
+  const activeDays = classDaysArray.map(d => Number(d));
+
+  let current = new Date(start);
+  while (current <= end) {
+    const dayOfWeek = current.getDay();
+    
+    if (activeDays.includes(dayOfWeek)) {
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+
+      if (holidaysSet.has(dateString)) {
+        holidaysEncounteredCount++;
+      } else {
+        totalClassesCount++;
+      }
+    }
+    
+    current.setDate(current.getDate() + 1);
+  }
+
+  return {
+    totalClasses: totalClassesCount,
+    holidaysFound: holidaysEncounteredCount
+  };
+}
+
 export function calculateAttendanceMetrics(course) {
-  const daysTotal = Number(course.totalClasses) || 30;
+  let daysTotal = Number(course.totalClasses) || 30;
+  let holidaysFound = 0;
+  if (course.classDays && course.classDays.length > 0) {
+     const calc = calculateExactClasses(course.classDays);
+     daysTotal = calc.totalClasses;
+     holidaysFound = calc.holidaysFound;
+  }
+  
   const modulesPerDay = Number(course.modulesPerDay) || 2;
   const totalModuleUnits = daysTotal * modulesPerDay;
 
@@ -137,7 +203,8 @@ export function calculateAttendanceMetrics(course) {
     statusLabel,
     statusBg,
     statusIcon,
-    statusMessage
+    statusMessage,
+    holidaysFound
   };
 }
 
