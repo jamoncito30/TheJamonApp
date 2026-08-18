@@ -304,7 +304,7 @@ function openSupabaseConfigModal() {
   const adminPass = prompt('🔒 Área de Administración:\nIngresa la contraseña Maestra de Administración para modificar la configuración de Supabase:');
   if (adminPass === null) return;
 
-  if (adminPass !== 'jamon2026') {
+  if (adminPass !== 'Mario1140$1975$') {
     showToast('Acceso denegado: Contraseña de administración incorrecta.', 'danger');
     return;
   }
