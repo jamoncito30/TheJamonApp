@@ -186,19 +186,19 @@ export function getHistory() {
 export function calculateCourseGrades(course, passingGrade = 4.0) {
   const isUddRule = !!course.isUddRuleEnabled;
   const evals = course.evaluations || [];
+  const examWeight = Number(course.examWeight) || 30;
+  const presentationWeight = 100 - examWeight;
+  const examGrade = course.examGrade !== null && course.examGrade !== undefined ? Number(course.examGrade) : null;
 
   if (evals.length === 0) {
     return { currentAverage: null, totalGradedWeight: 0, requiredRemainingGrade: null, isExempt: false };
   }
 
-  const examEval = evals.find(e => e.name.toLowerCase().includes('examen')) || evals[evals.length - 1];
-  const nonExamEvals = evals.filter(e => e !== examEval);
-
   let certamenSum = 0;
   let certamenWeight = 0;
   let gradedCertamens = [];
 
-  nonExamEvals.forEach(ev => {
+  evals.forEach(ev => {
     const w = Number(ev.weight) || 0;
     if (ev.grade !== null && ev.grade !== undefined && !isNaN(ev.grade)) {
       certamenSum += Number(ev.grade) * w;
@@ -214,7 +214,7 @@ export function calculateCourseGrades(course, passingGrade = 4.0) {
   let replacedCertamenName = null;
   let originalCertamenGrade = null;
 
-  if (isUddRule && examEval && examEval.grade !== null && examEval.grade !== undefined && Number(examEval.grade) >= 4.0) {
+  if (isUddRule && examGrade !== null && examGrade >= 4.0 && !isExempt) {
     if (gradedCertamens.length > 0) {
       let lowestCertamen = gradedCertamens[0];
       gradedCertamens.forEach(c => {
@@ -223,74 +223,97 @@ export function calculateCourseGrades(course, passingGrade = 4.0) {
         }
       });
 
-      if (Number(examEval.grade) > Number(lowestCertamen.grade)) {
+      if (examGrade > Number(lowestCertamen.grade)) {
         replacedCertamenName = lowestCertamen.name;
         originalCertamenGrade = lowestCertamen.grade;
         
         const targetInEffective = effectiveEvals.find(e => e.id === lowestCertamen.id);
         if (targetInEffective) {
-          targetInEffective.grade = examEval.grade;
+          targetInEffective.grade = examGrade;
         }
       }
     }
   }
 
-  let totalWeightedGradedSum = 0;
-  let totalGradedWeight = 0;
-  let totalUngradedWeight = 0;
+  let totalWeightedEvalsSum = 0;
+  let totalEvalsWeight = 0;
 
   effectiveEvals.forEach(ev => {
     const w = Number(ev.weight) || 0;
     if (ev.grade !== null && ev.grade !== undefined && !isNaN(ev.grade)) {
-      totalWeightedGradedSum += Number(ev.grade) * (w / 100);
-      totalGradedWeight += w;
-    } else {
-      totalUngradedWeight += w;
+      totalWeightedEvalsSum += Number(ev.grade) * (w / 100);
+      totalEvalsWeight += w;
     }
   });
 
-  const currentAverage = totalGradedWeight > 0 
-    ? (totalWeightedGradedSum / (totalGradedWeight / 100)).toFixed(2)
-    : null;
+  const presentationGradeValue = totalEvalsWeight > 0 ? (totalWeightedEvalsSum / (totalEvalsWeight / 100)) : null;
+
+  let finalGradeSum = 0;
+  let totalCourseGradedWeight = 0;
+  let totalCourseUngradedWeight = 100;
+
+  if (presentationGradeValue !== null) {
+    const gradedPresentationCourseWeight = (totalEvalsWeight / 100) * presentationWeight;
+    finalGradeSum += presentationGradeValue * (gradedPresentationCourseWeight / 100);
+    totalCourseGradedWeight += gradedPresentationCourseWeight;
+    totalCourseUngradedWeight -= gradedPresentationCourseWeight;
+  }
+
+  if (examGrade !== null) {
+    finalGradeSum += examGrade * (examWeight / 100);
+    totalCourseGradedWeight += examWeight;
+    totalCourseUngradedWeight -= examWeight;
+  }
+
+  if (isExempt && examGrade === null) {
+    totalCourseGradedWeight += examWeight;
+    totalCourseUngradedWeight -= examWeight;
+    finalGradeSum += presentationGradeValue * (examWeight / 100);
+  }
+
+  const currentAverage = totalCourseGradedWeight > 0 ? (finalGradeSum / (totalCourseGradedWeight / 100)) : null;
 
   let requiredRemainingGrade = null;
-  
-  if (totalUngradedWeight > 0 && examEval && (examEval.grade === null || examEval.grade === undefined)) {
+  if (totalCourseUngradedWeight > 0) {
     if (isExempt) {
       requiredRemainingGrade = 'Eximido (0.0)';
     } else {
-      const examWeight = Number(examEval.weight) || 30;
-
-      if (!isUddRule || gradedCertamens.length === 0) {
-        const pointsNeeded = passingGrade - totalWeightedGradedSum;
-        const needed = (pointsNeeded / (examWeight / 100));
-        requiredRemainingGrade = Math.max(1.0, Math.min(7.0, needed)).toFixed(1);
-      } else {
+      if (isUddRule && totalCourseUngradedWeight === examWeight && gradedCertamens.length > 0 && examGrade === null) {
         let lowestCertamen = gradedCertamens[0];
         gradedCertamens.forEach(c => {
           if (Number(c.grade) < Number(lowestCertamen.grade)) lowestCertamen = c;
         });
-
+        
         const lowestWeight = Number(lowestCertamen.weight) || 0;
-        const otherCertamensSum = totalWeightedGradedSum - (Number(lowestCertamen.grade) * (lowestWeight / 100));
-
-        const combinedWeightPercent = (lowestWeight + examWeight) / 100;
-        const neededWithUDD = (4.0 - otherCertamensSum) / combinedWeightPercent;
-
-        if (neededWithUDD <= 4.0) {
-          requiredRemainingGrade = Math.max(1.0, neededWithUDD).toFixed(1);
+        const lowestCertamenCourseWeight = (lowestWeight / 100) * presentationWeight;
+        const otherEvalsSum = finalGradeSum - (Number(lowestCertamen.grade) * (lowestCertamenCourseWeight / 100));
+        
+        const combinedWeightPercent = (lowestCertamenCourseWeight + examWeight) / 100;
+        const neededWithUDD = (passingGrade - otherEvalsSum) / combinedWeightPercent;
+        const neededNormal = (passingGrade - finalGradeSum) / (examWeight / 100);
+        
+        if (neededNormal <= 4.0) {
+          requiredRemainingGrade = Math.max(1.0, neededNormal).toFixed(1);
+        } else if (neededWithUDD <= 4.0) {
+          requiredRemainingGrade = '4.0 (Regla UDD)';
         } else {
           requiredRemainingGrade = Math.min(7.0, neededWithUDD).toFixed(1);
         }
+      } else {
+        const neededPoints = passingGrade - finalGradeSum;
+        const requiredGrade = neededPoints / (totalCourseUngradedWeight / 100);
+        requiredRemainingGrade = requiredGrade > 0 ? requiredGrade.toFixed(1) : '1.0';
       }
     }
   }
 
   return {
-    currentAverage: currentAverage ? Number(currentAverage) : null,
-    totalGradedWeight,
-    totalUngradedWeight,
-    requiredRemainingGrade,
+    currentAverage: currentAverage !== null ? currentAverage.toFixed(2) : null,
+    totalGradedWeight: totalCourseGradedWeight,
+    totalUngradedWeight: totalCourseUngradedWeight,
+    requiredRemainingGrade: requiredRemainingGrade === 'Eximido (0.0)' || requiredRemainingGrade === '4.0 (Regla UDD)' 
+      ? requiredRemainingGrade 
+      : (requiredRemainingGrade && parseFloat(requiredRemainingGrade) <= 7.0 ? requiredRemainingGrade : (requiredRemainingGrade ? 'Inalcanzable' : null)),
     isExempt,
     isUddRule,
     replacedCertamenName,

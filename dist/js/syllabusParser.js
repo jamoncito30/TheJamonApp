@@ -47,14 +47,15 @@ Tu tarea es leer detenidamente el texto proporcionado y extraer con precisión q
 
 Reglas de extracción críticas:
 1. credits (number): Busca intensivamente términos como "Créditos", "Créditos SCT", "SCT", "UC" o "Créditos UDD". Extrae solo el número entero (ej. 6, 8, 10). Si no encuentras, usa 6.
-2. evaluations (array): Es VITAL que extraigas TODAS las evaluaciones y sus porcentajes correctos. Busca tablas de evaluación, secciones de "Estrategia de Evaluación" o "Ponderaciones". Extrae objetos con { "name": string, "weight": number, "date": string }.
-   - Asegúrate de extraer correctamente los porcentajes (ej: Certamen 1 25%, Examen 30%).
+2. evaluations (array): Extrae ÚNICAMENTE las evaluaciones regulares que conforman la "Nota de Presentación" (Certámenes, Controles, Talleres, Laboratorios, Proyectos).
+   - EXCLUYE explícitamente "Examen", "Examen Final" y "Nota de Presentación" de esta lista.
+   - Extrae objetos con { "name": string, "weight": number, "date": string }.
    - "weight" debe ser un número (ej. 25 para 25%).
-   - Detecta: "Examen", "Certamen", "Solemne", "Controles", "Ayudantía", "Proyecto", "Laboratorio".
-   - Las ponderaciones (weight) DEBEN sumar idealmente 100. Revisa el texto dos veces para no perder porcentajes.
-3. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2, H3-H4, típico en UDD) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
-4. totalClasses (number): Cuenta las semanas del calendario o extrae las clases totales. Por defecto 32 (16 semanas x 2).
-5. requiredAttendancePercent (number): Busca % de asistencia (ej: 75% o 80%). Por defecto 75.
+   - La suma de las ponderaciones (weight) de estos elementos extraídos DEBE sumar idealmente 100 (ya que representan el 100% de la Nota de Presentación). Revisa el texto dos veces para no perder controles ni talleres.
+3. examWeight (number): Busca la ponderación del Examen Final (usualmente 30% o 40%). Extrae solo el número. Si no existe, usa 30.
+4. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2, H3-H4, típico en UDD) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
+5. totalClasses (number): Cuenta las semanas del calendario o extrae las clases totales. Por defecto 32 (16 semanas x 2).
+6. requiredAttendancePercent (number): Busca % de asistencia (ej: 75% o 80%). Por defecto 75.
 
 El JSON debe tener EXACTAMENTE esta estructura:
 {
@@ -64,6 +65,7 @@ El JSON debe tener EXACTAMENTE esta estructura:
   "requiredAttendancePercent": number,
   "totalClasses": number,
   "modulesPerDay": number,
+  "examWeight": number,
   "evaluations": [ { "name": "string", "weight": number, "date": "string" } ]
 }
 
@@ -89,6 +91,7 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
           requiredAttendancePercent: { type: "INTEGER" },
           totalClasses: { type: "INTEGER" },
           modulesPerDay: { type: "INTEGER" },
+          examWeight: { type: "INTEGER" },
           evaluations: {
             type: "ARRAY",
             items: {
@@ -102,7 +105,7 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
             }
           }
         },
-        required: ["name", "code", "credits", "requiredAttendancePercent", "totalClasses", "modulesPerDay", "evaluations"]
+        required: ["name", "code", "credits", "requiredAttendancePercent", "totalClasses", "modulesPerDay", "examWeight", "evaluations"]
       },
       temperature: 0.1
     }
@@ -135,6 +138,8 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
     requiredAttendancePercent: Number(parsed.requiredAttendancePercent) || 75,
     totalClasses: Number(parsed.totalClasses) || 32,
     modulesPerDay: Number(parsed.modulesPerDay) || 2,
+    examWeight: Number(parsed.examWeight) || 30,
+    examGrade: null,
     attended: 0,
     absent: 0,
     isUddRuleEnabled: true,
@@ -145,9 +150,9 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
       date: ev.date || 'Por definir',
       grade: null
     })) : [
-      { id: 'ev-1', name: 'Certamen 1', weight: 30, date: 'Semana 6', grade: null },
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null },
       { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
-      { id: 'ev-3', name: 'Examen Final', weight: 35, date: 'Semana 16', grade: null }
+      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Semana 16', grade: null }
     ]
   };
 }
@@ -244,12 +249,20 @@ export function extractMetadataFromText(text) {
     credits = parseInt(credMatch[1] || credMatch[2], 10);
   }
 
+  let examWeight = 30;
+  const examMatch = cleanText.match(/Examen\s*(?:Final)?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/i);
+  if (examMatch) {
+    examWeight = parseInt(examMatch[1] || examMatch[2], 10);
+  }
+
   const evaluations = [];
-  const evalRegex = /(Certamen|Prueba|Solemne|Examen|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*\d{1,2})?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
+  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*\d{1,2})?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
   
   let match;
   while ((match = evalRegex.exec(cleanText)) !== null) {
     const type = match[1];
+    if (type.toLowerCase().includes('examen')) continue; // skip exam
+
     let numStr = match[0].match(/N?[°\.]?\s*(\d{1,2})(?!\s*%)/i);
     const num = numStr ? ` ${numStr[1]}` : '';
     const weight = parseInt(match[2] || match[3] || '25', 10);
@@ -257,7 +270,7 @@ export function extractMetadataFromText(text) {
 
     evaluations.push({
       id: `ev-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `${type}${num}`,
+      name: `${type} ${num}`.trim(),
       weight: weight,
       date: date,
       grade: null
@@ -266,9 +279,9 @@ export function extractMetadataFromText(text) {
 
   if (evaluations.length === 0) {
     evaluations.push(
-      { id: 'ev-1', name: 'Certamen 1', weight: 30, date: 'Semana 6', grade: null },
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null },
       { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
-      { id: 'ev-3', name: 'Examen Final', weight: 35, date: 'Semana 16', grade: null }
+      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Semana 16', grade: null }
     );
   }
 
@@ -278,6 +291,8 @@ export function extractMetadataFromText(text) {
     credits,
     totalClasses,
     modulesPerDay: 2,
+    examWeight,
+    examGrade: null,
     requiredAttendancePercent,
     attended: 0,
     absent: 0,
@@ -293,13 +308,15 @@ function createEmptyParsedObject() {
     credits: 6,
     totalClasses: 32,
     modulesPerDay: 2,
+    examWeight: 30,
+    examGrade: null,
     requiredAttendancePercent: 75,
     attended: 0,
     absent: 0,
     evaluations: [
-      { id: 'ev-1', name: 'Certamen 1', weight: 30, date: 'Por definir', grade: null },
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Por definir', grade: null },
       { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Por definir', grade: null },
-      { id: 'ev-3', name: 'Examen Final', weight: 35, date: 'Por definir', grade: null }
+      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Por definir', grade: null }
     ],
     rawTextPreview: ''
   };

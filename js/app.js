@@ -310,6 +310,7 @@ function openConfirmationModal(parsedData) {
       const updatedCredits = parseInt(document.getElementById('form-credits').value, 10);
       const updatedReqAtt = parseInt(document.getElementById('form-req-att').value, 10);
       const updatedTotalClasses = parseInt(document.getElementById('form-total-classes').value, 10);
+      const updatedExamWeight = parseInt(document.getElementById('form-exam-weight').value, 10);
       const modulesPerDay = parseInt(document.querySelector('input[name="form-modules-per-day"]:checked')?.value || '2', 10);
       const isUddRuleEnabled = document.getElementById('form-udd-rule')?.checked ?? true;
 
@@ -341,6 +342,8 @@ function openConfirmationModal(parsedData) {
         requiredAttendancePercent: updatedReqAtt,
         totalClasses: updatedTotalClasses,
         modulesPerDay: modulesPerDay,
+        examWeight: updatedExamWeight || 30,
+        examGrade: null,
         attended: 0,
         absent: 0,
         isUddRuleEnabled,
@@ -404,6 +407,12 @@ function attachGradeSaveHandler(course) {
           ev.grade = valStr !== '' ? parseFloat(valStr) : null;
         }
       });
+
+      const examInput = document.getElementById('exam-grade-input');
+      if (examInput) {
+        const examVal = examInput.value.trim();
+        course.examGrade = examVal !== '' ? parseFloat(examVal) : null;
+      }
 
       saveCourse(course);
       showToast('¡Notas guardadas correctamente!', 'success');

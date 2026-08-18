@@ -368,13 +368,21 @@ export function renderConfirmationModal(parsedData) {
               <label class="text-[11px] font-bold text-slate-300">% Asistencia Exigida</label>
               <div class="flex items-center gap-1 mt-1">
                 <input type="number" id="form-req-att" value="${parsedData.requiredAttendancePercent}" min="50" max="100" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-amber-400 font-bold focus:border-blue-500 focus:outline-none" />
-                <span class="text-xs font-bold text-slate-400">%</span>
+                <span class="text-xs text-slate-500 font-bold">%</span>
               </div>
             </div>
 
             <div>
               <label class="text-[11px] font-bold text-slate-300">Días / Clases en Semestre</label>
               <input type="number" id="form-total-classes" value="${parsedData.totalClasses}" min="1" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold mt-1 focus:border-blue-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-bold text-slate-300">Ponderación Examen Final (%)</label>
+            <div class="flex items-center gap-1 mt-1">
+              <input type="number" id="form-exam-weight" value="${parsedData.examWeight || 30}" min="0" max="100" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-emerald-400 font-bold focus:border-blue-500 focus:outline-none" />
+              <span class="text-xs text-slate-500 font-bold">%</span>
             </div>
           </div>
 
@@ -477,6 +485,21 @@ export function renderGradeDetails(course) {
     `;
   }).join('');
 
+  const examHtml = `
+    <div class="bg-indigo-950/40 p-3 rounded-2xl border border-indigo-500/30 flex items-center justify-between gap-2 mt-4 shadow-lg shadow-indigo-900/20">
+      <div class="flex-1">
+        <h4 class="text-xs font-bold text-indigo-100 flex items-center gap-1.5">
+          <i data-lucide="graduation-cap" class="w-4 h-4 text-indigo-400"></i>
+          Examen Final
+        </h4>
+        <span class="text-[10px] text-indigo-300 font-semibold">Ponderación: ${course.examWeight || 30}%</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="number" step="0.1" min="1.0" max="7.0" value="${course.examGrade !== null && course.examGrade !== undefined ? course.examGrade : ''}" id="exam-grade-input" class="w-16 bg-slate-900 border border-indigo-500/50 text-white font-extrabold text-sm text-center rounded-xl py-1.5 focus:border-indigo-400 focus:outline-none" placeholder="1.0 - 7.0" />
+      </div>
+    </div>
+  `;
+
   return `
     <!-- UDD Special Rule Banner -->
     <div class="bg-slate-900/90 p-4 rounded-3xl border border-blue-500/30 flex items-center justify-between space-x-3">
@@ -518,13 +541,13 @@ export function renderGradeDetails(course) {
       <div class="flex items-center justify-between px-1">
         <h3 class="text-xs font-bold text-slate-200">Notas Obtenidas (Escala 1.0 - 7.0)</h3>
         <button id="save-grades-btn" data-course-id="${course.id}" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30 transition-all flex items-center gap-1">
-          <i data-lucide="check" class="w-3.5 h-3.5"></i>
-          Guardar Notas
+          <i data-lucide="save" class="w-3.5 h-3.5"></i> Guardar
         </button>
       </div>
 
       <div class="space-y-2">
         ${rowsHtml}
+        ${examHtml}
       </div>
     </div>
   `;
