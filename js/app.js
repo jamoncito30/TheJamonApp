@@ -281,17 +281,8 @@ function attachAuthListeners() {
 
   const appleBtn = document.getElementById('auth-apple-btn');
   if (appleBtn) {
-    appleBtn.addEventListener('click', async () => {
-      if (!isSupabaseConfigured()) {
-        showToast('Debes configurar Supabase primero.', 'warning');
-        openSupabaseConfigModal();
-        return;
-      }
-      try {
-        await signInWithApple();
-      } catch (err) {
-        showToast(err.message || 'Error al conectar con Apple', 'danger');
-      }
+    appleBtn.addEventListener('click', () => {
+      showToast('El inicio de sesión con Apple se encuentra en desarrollo. Usa Correo o Google.', 'info');
     });
   }
 
