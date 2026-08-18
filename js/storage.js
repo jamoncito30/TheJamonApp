@@ -76,9 +76,13 @@ export function deleteCourse(courseId) {
 
 // Math logic considering Modules per day
 // UDD Calendar Engine 2026 (Semestre 2)
+export const UDD_PERIODS_2026 = {
+  "semestre2": { start: '2026-08-03T00:00:00-04:00', end: '2026-11-24T00:00:00-04:00' },
+  "bimestre3": { start: '2026-08-03T00:00:00-04:00', end: '2026-09-30T00:00:00-04:00' },
+  "bimestre4": { start: '2026-10-01T00:00:00-04:00', end: '2026-11-24T00:00:00-04:00' }
+};
+
 export const UDD_CALENDAR_2026 = {
-  startDate: new Date('2026-08-03T00:00:00-04:00'),
-  endDate: new Date('2026-11-24T00:00:00-04:00'),
   holidays: [
     '2026-08-15', // Asunción de la Virgen
     '2026-09-11', // Suspensión PM
@@ -96,11 +100,12 @@ export const UDD_CALENDAR_2026 = {
   ]
 };
 
-export function calculateExactClasses(classDaysArray) {
+export function calculateExactClasses(classDaysArray, periodKey = 'semestre2') {
   if (!classDaysArray || classDaysArray.length === 0) return { totalClasses: 32, holidaysFound: 0 };
 
-  const start = new Date(UDD_CALENDAR_2026.startDate);
-  const end = new Date(UDD_CALENDAR_2026.endDate);
+  const period = UDD_PERIODS_2026[periodKey] || UDD_PERIODS_2026['semestre2'];
+  const start = new Date(period.start);
+  const end = new Date(period.end);
   const holidaysSet = new Set(UDD_CALENDAR_2026.holidays);
 
   let totalClassesCount = 0;
@@ -138,7 +143,7 @@ export function calculateAttendanceMetrics(course) {
   let daysTotal = Number(course.totalClasses) || 30;
   let holidaysFound = 0;
   if (course.classDays && course.classDays.length > 0) {
-     const calc = calculateExactClasses(course.classDays);
+     const calc = calculateExactClasses(course.classDays, course.academicPeriod || 'semestre2');
      daysTotal = calc.totalClasses;
      holidaysFound = calc.holidaysFound;
   }

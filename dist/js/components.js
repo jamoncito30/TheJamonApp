@@ -373,7 +373,16 @@ export function renderConfirmationModal(parsedData) {
             </div>
 
             <div>
-              <label class="text-[11px] font-bold text-slate-300">Días de Clases (Semestre 2)</label>
+              <label class="text-[11px] font-bold text-slate-300">Periodo Académico</label>
+              <select id="form-academic-period" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-semibold mt-1 focus:border-blue-500 focus:outline-none">
+                <option value="semestre2" ${!parsedData.name.toLowerCase().includes('bimestre') ? 'selected' : ''}>Semestral (Ago - Nov)</option>
+                <option value="bimestre3" ${parsedData.name.toLowerCase().includes('bimestre 3') ? 'selected' : ''}>Bimestre 3 (Ago - Sep)</option>
+                <option value="bimestre4" ${parsedData.name.toLowerCase().includes('bimestre 4') ? 'selected' : ''}>Bimestre 4 (Oct - Nov)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold text-slate-300">Días de Clases</label>
               <div class="grid grid-cols-3 gap-1 mt-1">
                 ${[
                   {id:1, label:'Lun'},

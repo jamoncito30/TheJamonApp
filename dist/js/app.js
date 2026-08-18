@@ -305,11 +305,14 @@ function openConfirmationModal(parsedData) {
   const classDaysCheckboxes = modalContainer.querySelectorAll('input[name="form-class-days"]');
   const infoDiv = document.getElementById('dynamic-classes-info');
   const hiddenTotalClasses = document.getElementById('form-total-classes');
+  const periodSelect = document.getElementById('form-academic-period');
 
   const updateDynamicClasses = () => {
     const selectedDays = Array.from(classDaysCheckboxes)
       .filter(cb => cb.checked)
       .map(cb => Number(cb.value));
+
+    const selectedPeriod = periodSelect ? periodSelect.value : 'semestre2';
 
     if (selectedDays.length === 0) {
       if (infoDiv) infoDiv.innerHTML = 'Selecciona días para calcular fechas y feriados.';
@@ -317,7 +320,7 @@ function openConfirmationModal(parsedData) {
       return;
     }
 
-    const calc = calculateExactClasses(selectedDays);
+    const calc = calculateExactClasses(selectedDays, selectedPeriod);
     if (infoDiv) {
       infoDiv.innerHTML = `Calculado: <b>${calc.totalClasses} días</b> de clases reales.<br/><span class="text-slate-500">Se descontaron <b>${calc.holidaysFound} feriado(s)</b> de tus clases.</span>`;
     }
@@ -327,6 +330,7 @@ function openConfirmationModal(parsedData) {
   };
 
   classDaysCheckboxes.forEach(cb => cb.addEventListener('change', updateDynamicClasses));
+  if (periodSelect) periodSelect.addEventListener('change', updateDynamicClasses);
   updateDynamicClasses();
 
   if (form) {
@@ -341,6 +345,7 @@ function openConfirmationModal(parsedData) {
       const updatedClassDays = Array.from(modalContainer.querySelectorAll('input[name="form-class-days"]'))
         .filter(cb => cb.checked)
         .map(cb => Number(cb.value));
+      const updatedPeriod = periodSelect ? periodSelect.value : 'semestre2';
       const updatedExamWeight = parseInt(document.getElementById('form-exam-weight').value, 10);
       const modulesPerDay = parseInt(document.querySelector('input[name="form-modules-per-day"]:checked')?.value || '2', 10);
       const isUddRuleEnabled = document.getElementById('form-udd-rule')?.checked ?? true;
@@ -373,6 +378,7 @@ function openConfirmationModal(parsedData) {
         requiredAttendancePercent: updatedReqAtt,
         totalClasses: updatedTotalClasses,
         classDays: updatedClassDays,
+        academicPeriod: updatedPeriod,
         modulesPerDay: modulesPerDay,
         examWeight: updatedExamWeight || 30,
         examGrade: null,
