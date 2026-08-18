@@ -50,12 +50,14 @@ Reglas de extracción críticas:
 2. evaluations (array): Extrae ÚNICAMENTE las evaluaciones regulares que conforman la "Nota de Presentación" (Certámenes, Controles, Talleres, Laboratorios, Proyectos).
    - EXCLUYE explícitamente "Examen", "Examen Final" y "Nota de Presentación" de esta lista.
    - Extrae objetos con { "name": string, "weight": number, "date": string }.
-   - "weight" debe ser un número (ej. 25 para 25%).
-   - La suma de las ponderaciones (weight) de estos elementos extraídos DEBE sumar idealmente 100 (ya que representan el 100% de la Nota de Presentación). Revisa el texto dos veces para no perder controles ni talleres.
+   - "name": Conserva el nombre exacto (ej. "Certamen 1", "Controles", "Talleres"). NO inventes números que no existen en el texto.
+   - "weight": Extrae el porcentaje exacto (ej. 20 para 20%). NUNCA uses 0 si el documento especifica un porcentaje.
+   - Revisa el texto dos veces para asegurarte de incluir TODO: Certámenes, Controles y Talleres.
+   - La suma de las ponderaciones (weight) de estos elementos extraídos DEBE sumar 100.
 3. examWeight (number): Busca la ponderación del Examen Final (usualmente 30% o 40%). Extrae solo el número. Si no existe, usa 30.
-4. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2, H3-H4, típico en UDD) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
-5. totalClasses (number): Cuenta las semanas del calendario o extrae las clases totales. Por defecto 32 (16 semanas x 2).
-6. requiredAttendancePercent (number): Busca % de asistencia (ej: 75% o 80%). Por defecto 75.
+4. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
+5. totalClasses (number): Por defecto 32 (16 semanas x 2).
+6. requiredAttendancePercent (number): Busca % de asistencia (ej: "Sobre 70%" -> 70, "75%" -> 75). Por defecto 70.
 
 El JSON debe tener EXACTAMENTE esta estructura:
 {
@@ -223,8 +225,8 @@ export function extractMetadataFromText(text) {
     code = 'COD-101';
   }
 
-  let requiredAttendancePercent = 75;
-  const attMatch = cleanText.match(/(?:asistencia|exigencia|asistencia obligatoria|asistencia mínima)\s*[:|-]?\s*(\d{2})\s*%/i) ||
+  let requiredAttendancePercent = 70; // UDD Default is 70%
+  const attMatch = cleanText.match(/(?:asistencia|exigencia|asistencia obligatoria|asistencia mínima)\s*(?:exigida)?\s*[:|-]?\s*(?:sobre|mayor a|>|>=)?\s*(\d{2})\s*%/i) ||
                    cleanText.match(/(\d{2})\s*%\s*(?:de asistencia|asistencia)/i);
   if (attMatch && attMatch[1]) {
     const parsedPercent = parseInt(attMatch[1], 10);
@@ -256,21 +258,20 @@ export function extractMetadataFromText(text) {
   }
 
   const evaluations = [];
-  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*\d{1,2})?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
+  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2}))?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
   
   let match;
   while ((match = evalRegex.exec(cleanText)) !== null) {
     const type = match[1];
     if (type.toLowerCase().includes('examen')) continue; // skip exam
 
-    let numStr = match[0].match(/N?[°\.]?\s*(\d{1,2})(?!\s*%)/i);
-    const num = numStr ? ` ${numStr[1]}` : '';
-    const weight = parseInt(match[2] || match[3] || '25', 10);
+    const num = match[2] ? ` ${match[2]}` : '';
+    const weight = parseInt(match[3] || match[4] || '25', 10);
     const date = 'Por definir';
 
     evaluations.push({
       id: `ev-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `${type} ${num}`.trim(),
+      name: `${type}${num}`.trim(),
       weight: weight,
       date: date,
       grade: null
