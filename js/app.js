@@ -407,11 +407,12 @@ function attachGradesListeners() {
   const updateDetails = () => {
     if (!select || !detailsContainer) return;
     const courseId = select.value;
+    state.courses = getCourses();
     const course = state.courses.find(c => c.id === courseId);
     if (course) {
       detailsContainer.innerHTML = renderGradeDetails(course);
       if (window.lucide) window.lucide.createIcons();
-      attachGradeSaveHandler(course);
+      attachGradeSaveHandler(course, updateDetails);
     }
   };
 
@@ -421,12 +422,11 @@ function attachGradesListeners() {
   }
 }
 
-function attachGradeSaveHandler(course) {
+function attachGradeSaveHandler(course, onFullReRender) {
   const saveBtn = document.getElementById('save-grades-btn');
   const toggleUdd = document.getElementById('toggle-udd-rule');
 
-  const updateCalculationsRealTime = () => {
-    // 1. Sync inputs to course object in memory
+  const syncInputsToCourse = () => {
     const inputs = document.querySelectorAll('.grade-input');
     inputs.forEach(input => {
       const evalId = input.getAttribute('data-eval-id');
@@ -443,13 +443,13 @@ function attachGradeSaveHandler(course) {
       course.examGrade = examVal !== '' ? parseFloat(examVal) : null;
     }
 
-    // 2. Auto save to storage so refresh doesn't lose state
     saveCourse(course);
+  };
 
-    // 3. Recalculate metrics
+  const updateCalculationsRealTime = () => {
+    syncInputsToCourse();
     const metrics = calculateCourseGrades(course, 4.0);
 
-    // 4. Update DOM elements live
     const presEl = document.getElementById('promedio-presentacion-val');
     if (presEl) {
       presEl.textContent = metrics.presentationGrade !== null ? metrics.presentationGrade : 'S/I';
@@ -477,6 +477,10 @@ function attachGradeSaveHandler(course) {
   // Attach real-time input listeners to all grade inputs
   document.querySelectorAll('.grade-input, #exam-grade-input').forEach(input => {
     input.addEventListener('input', updateCalculationsRealTime);
+    input.addEventListener('change', () => {
+      syncInputsToCourse();
+      if (onFullReRender) onFullReRender();
+    });
   });
 
   if (toggleUdd) {
@@ -484,14 +488,15 @@ function attachGradeSaveHandler(course) {
       course.isUddRuleEnabled = e.target.checked;
       saveCourse(course);
       showToast(course.isUddRuleEnabled ? 'Regla UDD activada' : 'Regla estándar activada', 'info');
-      attachGradesListeners();
+      if (onFullReRender) onFullReRender();
     });
   }
 
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      updateCalculationsRealTime();
+      syncInputsToCourse();
       showToast('¡Notas guardadas correctamente!', 'success');
+      if (onFullReRender) onFullReRender();
     });
   }
 }
