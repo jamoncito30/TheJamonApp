@@ -1,5 +1,5 @@
 // iOS UI Component Renderer Functions for TheJamonApp
-import { calculateAttendanceMetrics, calculateCourseGrades, UDD_MODULES } from './storage.js';
+import { calculateAttendanceMetrics, calculateCourseGrades, computeSubEvaluationsGrade, UDD_MODULES } from './storage.js';
 import { getGeminiApiKey } from './syllabusParser.js';
 
 // 1. DASHBOARD VIEW (SEMÁFORO DE ASISTENCIA)
@@ -563,20 +563,55 @@ export function renderGradeDetails(course) {
 
   const rowsHtml = evals.map(ev => {
     const isReplaced = metrics.replacedCertamenName === ev.name;
+    const isSub = !!ev.isSubEvaluationsEnabled && Array.isArray(ev.subEvaluations) && ev.subEvaluations.length > 0;
+    const computedGrade = isSub ? computeSubEvaluationsGrade(ev) : (ev.grade !== null && ev.grade !== undefined && ev.grade !== '' ? Number(ev.grade) : null);
+    
+    let subStats = '';
+    if (isSub) {
+      const validCount = ev.subEvaluations.filter(s => s.grade !== null && s.grade !== undefined && s.grade !== '' && !isNaN(Number(s.grade))).length;
+      const totalCount = ev.subEvaluations.length;
+      subStats = `${validCount}/${totalCount} notas`;
+    }
 
     return `
-      <div class="bg-slate-900/80 p-3 rounded-2xl border ${isReplaced ? 'border-amber-500/50 bg-amber-500/5' : 'border-slate-800'} flex items-center justify-between gap-2">
-        <div class="flex-1">
-          <div class="flex items-center gap-1.5">
-            <h4 class="text-xs font-bold text-white">${ev.name}</h4>
+      <div class="bg-slate-900/80 p-3.5 rounded-2xl border ${isReplaced ? 'border-amber-500/50 bg-amber-500/5' : 'border-slate-800'} flex items-center justify-between gap-3 transition-all">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <h4 class="text-xs font-bold text-white truncate">${ev.name}</h4>
+            <span class="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">${ev.weight}%</span>
             ${isReplaced ? `<span class="text-[9px] font-extrabold text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-md">Reemplazado por Examen</span>` : ''}
+            ${isSub && ev.dropLowestCount > 0 ? `<span class="text-[8px] font-bold text-indigo-300 bg-indigo-500/20 px-1.5 py-0.2 rounded border border-indigo-500/30">Elimina peor</span>` : ''}
           </div>
-          <span class="text-[10px] text-blue-400 font-semibold">Ponderación: ${ev.weight}%</span>
-          ${isReplaced ? `<span class="text-[9px] text-slate-400 block">Nota original: ${metrics.originalCertamenGrade}</span>` : ''}
+          
+          ${isSub ? `
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[10px] text-slate-400 font-semibold">${subStats}</span>
+              <button type="button" class="open-subevals-btn px-2 py-0.5 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-300 hover:text-white text-[10px] font-bold flex items-center gap-1 transition-colors" data-course-id="${course.id}" data-eval-id="${ev.id}">
+                <i data-lucide="edit-3" class="w-3 h-3"></i> Ingresar / Ver Notas
+              </button>
+            </div>
+          ` : `
+            <div class="flex items-center gap-2 mt-1">
+              <button type="button" class="enable-subevals-btn text-[9px] text-slate-500 hover:text-purple-400 font-medium flex items-center gap-1 transition-colors" data-course-id="${course.id}" data-eval-id="${ev.id}">
+                <i data-lucide="split" class="w-2.5 h-2.5"></i> Desglosar en controles/sub-notas
+              </button>
+            </div>
+          `}
+          
+          ${isReplaced ? `<span class="text-[9px] text-slate-400 block mt-0.5">Nota original: ${metrics.originalCertamenGrade}</span>` : ''}
         </div>
 
-        <div class="flex items-center gap-2">
-          <input type="number" step="0.1" min="1.0" max="7.0" value="${ev.grade !== null && ev.grade !== undefined ? ev.grade : ''}" data-eval-id="${ev.id}" class="grade-input w-16 bg-slate-800 border border-slate-700 text-white font-extrabold text-sm text-center rounded-xl py-1.5 focus:border-blue-500 focus:outline-none" placeholder="1.0 - 7.0" />
+        <div class="flex items-center gap-2 shrink-0">
+          ${isSub ? `
+            <div class="flex flex-col items-end">
+              <div class="w-16 py-1.5 bg-purple-950/50 border border-purple-500/40 text-purple-300 font-black text-sm text-center rounded-xl shadow-inner cursor-pointer open-subevals-btn" data-course-id="${course.id}" data-eval-id="${ev.id}" title="Toca para ver o modificar controles">
+                ${computedGrade !== null ? computedGrade.toFixed(1) : 'S/I'}
+              </div>
+              <span class="text-[8px] text-purple-400/80 font-semibold mt-0.5">Auto-promedio</span>
+            </div>
+          ` : `
+            <input type="number" step="0.1" min="1.0" max="7.0" value="${ev.grade !== null && ev.grade !== undefined && ev.grade !== '' ? ev.grade : ''}" data-eval-id="${ev.id}" class="grade-input w-16 bg-slate-800 border border-slate-700 text-white font-extrabold text-sm text-center rounded-xl py-1.5 focus:border-blue-500 focus:outline-none" placeholder="1.0 - 7.0" />
+          `}
         </div>
       </div>
     `;
@@ -1084,6 +1119,141 @@ export function renderCanvasTutorialModal() {
               Subir Calendarización
             </button>
           </div>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+// 7. SUB-EVALUATIONS MODAL (CONTROLES / TALLERES DESGLOSE CON ELIMINACIÓN DE PEOR NOTA)
+export function renderSubEvaluationsModal(course, evalItem) {
+  const isDropActive = Number(evalItem.dropLowestCount) > 0;
+  const subItems = Array.isArray(evalItem.subEvaluations) && evalItem.subEvaluations.length > 0
+    ? evalItem.subEvaluations
+    : [
+        { id: `sub-1`, name: `${evalItem.name.replace(/es$/i, '').replace(/s$/i, '')} 1`, grade: null },
+        { id: `sub-2`, name: `${evalItem.name.replace(/es$/i, '').replace(/s$/i, '')} 2`, grade: null },
+        { id: `sub-3`, name: `${evalItem.name.replace(/es$/i, '').replace(/s$/i, '')} 3`, grade: null },
+        { id: `sub-4`, name: `${evalItem.name.replace(/es$/i, '').replace(/s$/i, '')} 4`, grade: null }
+      ];
+
+  // Identify lowest grade among valid entries for drop preview
+  const validWithGrades = subItems
+    .map((s, idx) => ({ ...s, idx, numGrade: (s.grade !== null && s.grade !== undefined && s.grade !== '' && !isNaN(Number(s.grade))) ? Number(s.grade) : null }))
+    .filter(s => s.numGrade !== null);
+
+  let lowestIdx = -1;
+  if (isDropActive && validWithGrades.length > 1) {
+    let minGrade = validWithGrades[0].numGrade;
+    lowestIdx = validWithGrades[0].idx;
+    validWithGrades.forEach(v => {
+      if (v.numGrade < minGrade) {
+        minGrade = v.numGrade;
+        lowestIdx = v.idx;
+      }
+    });
+  }
+
+  const computedGrade = computeSubEvaluationsGrade({ ...evalItem, isSubEvaluationsEnabled: true, dropLowestCount: isDropActive ? 1 : 0, subEvaluations: subItems });
+
+  const rowsHtml = subItems.map((sub, idx) => {
+    const isDropped = isDropActive && idx === lowestIdx;
+    return `
+      <div class="sub-eval-row bg-slate-900/90 p-3 rounded-2xl border ${isDropped ? 'border-amber-500/50 bg-amber-500/5' : 'border-slate-800'} flex items-center justify-between gap-2 transition-all" data-sub-id="${sub.id}">
+        <div class="flex-1 min-w-0">
+          <input type="text" class="sub-name-input w-full bg-transparent text-white font-bold text-xs focus:outline-none border-b border-transparent focus:border-purple-500" value="${sub.name || `Nota ${idx+1}`}" placeholder="Ej: Control ${idx+1}" />
+          ${isDropped ? `
+            <span class="text-[9px] font-extrabold text-amber-400 bg-amber-500/20 px-1.5 py-0.2 rounded inline-block mt-0.5">
+              🗑️ Eliminada por regla (Peor nota)
+            </span>
+          ` : ''}
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <input type="number" step="0.1" min="1.0" max="7.0" value="${sub.grade !== null && sub.grade !== undefined && sub.grade !== '' ? sub.grade : ''}" class="sub-grade-input w-16 bg-slate-800 border ${isDropped ? 'border-amber-500 text-amber-300' : 'border-slate-700 text-white'} font-black text-sm text-center rounded-xl py-1.5 focus:border-purple-500 focus:outline-none" placeholder="1.0-7.0" />
+          <button type="button" class="delete-sub-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors" title="Eliminar esta nota">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div id="subevals-modal-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-ios-fade">
+      <div class="bg-slate-950 border border-purple-500/30 rounded-3xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-950/40">
+        
+        <!-- Header -->
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-950/40 to-slate-900 shrink-0">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-9 h-9 rounded-2xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shrink-0">
+              <i data-lucide="list-ordered" class="w-5 h-5"></i>
+            </div>
+            <div class="truncate">
+              <h3 class="text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                Desglose: ${evalItem.name}
+                <span class="text-[10px] text-purple-300 bg-purple-500/20 px-1.5 py-0.2 rounded font-extrabold border border-purple-500/30 shrink-0">${evalItem.weight}%</span>
+              </h3>
+              <p class="text-[10px] text-slate-400 truncate">${course.name} (${course.code})</p>
+            </div>
+          </div>
+          <button type="button" id="close-subevals-modal" class="text-slate-400 hover:text-white p-1 rounded-lg shrink-0">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="p-4 overflow-y-auto space-y-4 flex-1">
+          
+          <!-- Drop Lowest Grade Option Card -->
+          <div class="bg-slate-900/90 p-3.5 rounded-2xl border border-purple-500/30 flex items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-bold text-purple-200 block">Eliminar la Peor Nota</span>
+              <p class="text-[10px] text-slate-400 mt-0.5">Descarta automáticamente la calificación más baja del promedio final (Regla UDD).</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+              <input type="checkbox" id="modal-drop-lowest-toggle" ${isDropActive ? 'checked' : ''} class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+
+          <!-- Notes Container -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between px-1">
+              <label class="text-xs font-bold text-slate-300">Notas Individuales:</label>
+              <button type="button" id="add-subeval-item-btn" class="text-[10px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1">
+                <i data-lucide="plus" class="w-3 h-3"></i> Agregar Nota
+              </button>
+            </div>
+
+            <div id="subevals-items-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+              ${rowsHtml}
+            </div>
+          </div>
+
+          <!-- Dynamic Result Banner -->
+          <div class="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/30 via-slate-900 to-indigo-950/30 border border-purple-500/30 flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-white block">Promedio Resultante</span>
+              <span id="modal-subeval-stats" class="text-[10px] text-slate-400">
+                ${isDropActive && validWithGrades.length > 1 ? `Promedio de las ${validWithGrades.length - 1} mejores notas` : `${validWithGrades.length} nota(s) ingresada(s)`}
+              </span>
+            </div>
+            <div id="modal-subeval-avg-val" class="text-2xl font-black ${computedGrade >= 4.0 ? 'text-emerald-400' : (computedGrade !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 bg-slate-950 rounded-xl border border-slate-800">
+              ${computedGrade !== null ? computedGrade.toFixed(2) : 'S/I'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-slate-800 bg-slate-900/60 flex gap-2 shrink-0">
+          <button type="button" id="cancel-subevals-btn" class="w-1/3 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold hover:bg-slate-700">
+            Cancelar
+          </button>
+          <button type="button" id="save-subevals-modal-btn" data-course-id="${course.id}" data-eval-id="${evalItem.id}" class="w-2/3 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 flex items-center justify-center gap-1.5 active:scale-95 transition-all">
+            <i data-lucide="check" class="w-4 h-4"></i> Guardar Desglose
+          </button>
         </div>
 
       </div>

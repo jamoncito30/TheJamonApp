@@ -259,28 +259,73 @@ export function getHistory() {
   }
 }
 
+// Helper to calculate the effective average of sub-evaluations (Controles, Talleres, etc.)
+export function computeSubEvaluationsGrade(evalItem) {
+  if (!evalItem.isSubEvaluationsEnabled || !evalItem.subEvaluations || evalItem.subEvaluations.length === 0) {
+    return (evalItem.grade !== undefined && evalItem.grade !== null && evalItem.grade !== '') ? Number(evalItem.grade) : null;
+  }
+
+  const validEntries = evalItem.subEvaluations
+    .map((s, idx) => ({
+      idx,
+      name: s.name || `Nota ${idx + 1}`,
+      grade: (s.grade !== null && s.grade !== undefined && s.grade !== '' && !isNaN(Number(s.grade))) ? Number(s.grade) : null
+    }))
+    .filter(s => s.grade !== null);
+
+  if (validEntries.length === 0) return null;
+
+  const dropCount = Number(evalItem.dropLowestCount) || 0;
+
+  // If drop rule is active and we have more than dropCount valid grades
+  if (dropCount > 0 && validEntries.length > dropCount) {
+    const sorted = [...validEntries].sort((a, b) => a.grade - b.grade);
+    const droppedIndices = new Set(sorted.slice(0, dropCount).map(s => s.idx));
+    const retained = validEntries.filter(s => !droppedIndices.has(s.idx));
+    const sum = retained.reduce((acc, s) => acc + s.grade, 0);
+    return Number((sum / retained.length).toFixed(2));
+  } else {
+    const sum = validEntries.reduce((acc, s) => acc + s.grade, 0);
+    return Number((sum / validEntries.length).toFixed(2));
+  }
+}
+
 // UDD Grade Calculation Engine
 export function calculateCourseGrades(course, passingGrade = 4.0) {
   const isUddRule = !!course.isUddRuleEnabled;
-  const evals = course.evaluations || [];
+  const rawEvals = course.evaluations || [];
   const examWeight = Number(course.examWeight) || 30;
   const presentationWeight = 100 - examWeight;
   const examGrade = course.examGrade !== null && course.examGrade !== undefined ? Number(course.examGrade) : null;
 
-  if (evals.length === 0) {
+  if (rawEvals.length === 0) {
     return { currentAverage: null, totalGradedWeight: 0, requiredRemainingGrade: null, isExempt: false };
   }
+
+  // Pre-process evaluations with sub-evaluations computation
+  const evals = rawEvals.map(ev => {
+    if (ev.isSubEvaluationsEnabled && ev.subEvaluations && ev.subEvaluations.length > 0) {
+      const computedGrade = computeSubEvaluationsGrade(ev);
+      return { ...ev, grade: computedGrade };
+    }
+    return { ...ev };
+  });
 
   let certamenSum = 0;
   let certamenWeight = 0;
   let gradedCertamens = [];
 
+  // Identify certamen / major test types for UDD replacement rule
+  const isCertamenName = (name = '') => /certamen|prueba|solemne|parcial|interrogaci[oó]n/i.test(name) && !/control|taller|quiz|tarea|trabajo|laboratorio/i.test(name);
+
   evals.forEach(ev => {
     const w = Number(ev.weight) || 0;
     if (ev.grade !== null && ev.grade !== undefined && !isNaN(ev.grade)) {
-      certamenSum += Number(ev.grade) * w;
-      certamenWeight += w;
-      gradedCertamens.push(ev);
+      if (isCertamenName(ev.name)) {
+        certamenSum += Number(ev.grade) * w;
+        certamenWeight += w;
+        gradedCertamens.push(ev);
+      }
     }
   });
 

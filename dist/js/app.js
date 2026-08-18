@@ -8,6 +8,8 @@ import {
   logAttendance,
   calculateAttendanceMetrics,
   calculateExactClasses,
+  calculateCourseGrades,
+  computeSubEvaluationsGrade,
   getHistory
 } from './storage.js';
 
@@ -26,7 +28,8 @@ import {
   renderCoursesView,
   renderAuthView,
   renderSupabaseConfigModal,
-  renderCanvasTutorialModal
+  renderCanvasTutorialModal,
+  renderSubEvaluationsModal
 } from './components.js';
 
 import {
@@ -699,12 +702,29 @@ function openConfirmationModal(parsedData) {
         }
       });
 
-      const updatedEvals = Object.values(evalsMap).map((ev, i) => ({
-        id: parsedData.evaluations[i]?.id || `ev-${Date.now()}-${i}`,
-        name: ev.name || `Evaluación ${i+1}`,
-        weight: Number(ev.weight) || 20,
-        grade: parsedData.evaluations[i]?.grade || null
-      }));
+      const updatedEvals = Object.values(evalsMap).map((ev, i) => {
+        const originalEval = parsedData.evaluations[i] || {};
+        const isSub = originalEval.isSubEvaluationsEnabled !== undefined 
+          ? originalEval.isSubEvaluationsEnabled 
+          : (/control|taller|quiz|tarea|laboratorio/i.test(ev.name || '') && !/certamen|prueba|solemne/i.test(ev.name || ''));
+        
+        const singularName = (ev.name || 'Nota').replace(/es$/i, '').replace(/s$/i, '').trim();
+        const defaultSubs = isSub ? Array.from({ length: 4 }, (_, k) => ({
+          id: `sub-${Date.now()}-${i}-${k}`,
+          name: `${singularName} ${k + 1}`,
+          grade: null
+        })) : [];
+
+        return {
+          id: originalEval.id || `ev-${Date.now()}-${i}`,
+          name: ev.name || `Evaluación ${i+1}`,
+          weight: Number(ev.weight) || 20,
+          grade: originalEval.grade || null,
+          isSubEvaluationsEnabled: isSub,
+          dropLowestCount: originalEval.dropLowestCount !== undefined ? originalEval.dropLowestCount : (isSub ? 1 : 0),
+          subEvaluations: originalEval.subEvaluations && originalEval.subEvaluations.length > 0 ? originalEval.subEvaluations : defaultSubs
+        };
+      });
 
       const finalCourse = {
         id: `course-${Date.now()}`,
@@ -819,6 +839,34 @@ function attachGradeSaveHandler(course, onFullReRender) {
     });
   });
 
+  // Attach open sub-evaluations (controles / talleres) modal listeners
+  document.querySelectorAll('.open-subevals-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const evalId = btn.getAttribute('data-eval-id');
+      openSubEvaluationsModal(course, evalId, onFullReRender);
+    });
+  });
+
+  document.querySelectorAll('.enable-subevals-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const evalId = btn.getAttribute('data-eval-id');
+      const evalItem = course.evaluations.find(e => e.id === evalId);
+      if (evalItem) {
+        evalItem.isSubEvaluationsEnabled = true;
+        evalItem.dropLowestCount = 1;
+        const singularName = (evalItem.name || 'Nota').replace(/es$/i, '').replace(/s$/i, '').trim();
+        evalItem.subEvaluations = [
+          { id: `sub-${Date.now()}-1`, name: `${singularName} 1`, grade: null },
+          { id: `sub-${Date.now()}-2`, name: `${singularName} 2`, grade: null },
+          { id: `sub-${Date.now()}-3`, name: `${singularName} 3`, grade: null },
+          { id: `sub-${Date.now()}-4`, name: `${singularName} 4`, grade: null }
+        ];
+        saveCourse(course);
+        openSubEvaluationsModal(course, evalId, onFullReRender);
+      }
+    });
+  });
+
   if (toggleUdd) {
     toggleUdd.addEventListener('change', (e) => {
       course.isUddRuleEnabled = e.target.checked;
@@ -833,6 +881,193 @@ function attachGradeSaveHandler(course, onFullReRender) {
       syncInputsToCourse();
       showToast('¡Notas guardadas correctamente!', 'success');
       if (onFullReRender) onFullReRender();
+    });
+  }
+}
+
+// Sub-Evaluations Interactive Modal (Controles, Talleres, Quizzes con Regla de Descarte)
+function openSubEvaluationsModal(course, evalId, onSaveCallback) {
+  const evalItem = course.evaluations.find(e => e.id === evalId);
+  if (!evalItem) return;
+
+  if (!evalItem.subEvaluations || evalItem.subEvaluations.length === 0) {
+    const singularName = (evalItem.name || 'Nota').replace(/es$/i, '').replace(/s$/i, '').trim();
+    evalItem.subEvaluations = [
+      { id: `sub-${Date.now()}-1`, name: `${singularName} 1`, grade: null },
+      { id: `sub-${Date.now()}-2`, name: `${singularName} 2`, grade: null },
+      { id: `sub-${Date.now()}-3`, name: `${singularName} 3`, grade: null },
+      { id: `sub-${Date.now()}-4`, name: `${singularName} 4`, grade: null }
+    ];
+  }
+
+  const modalWrap = document.createElement('div');
+  modalWrap.id = 'subevals-modal-container';
+  modalWrap.innerHTML = renderSubEvaluationsModal(course, evalItem);
+  document.body.appendChild(modalWrap);
+
+  if (window.lucide) window.lucide.createIcons();
+
+  const closeModal = () => {
+    modalWrap.remove();
+  };
+
+  const closeBtn = document.getElementById('close-subevals-modal');
+  const cancelBtn = document.getElementById('cancel-subevals-btn');
+  const saveModalBtn = document.getElementById('save-subevals-modal-btn');
+  const addSubBtn = document.getElementById('add-subeval-item-btn');
+  const dropToggle = document.getElementById('modal-drop-lowest-toggle');
+  const itemsList = document.getElementById('subevals-items-list');
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+  // Live Recalculation inside the modal
+  const updateModalCalculations = () => {
+    const isDropActive = dropToggle ? dropToggle.checked : false;
+    const rows = itemsList.querySelectorAll('.sub-eval-row');
+    const validEntries = [];
+
+    rows.forEach((row, idx) => {
+      const gradeInput = row.querySelector('.sub-grade-input');
+      const valStr = gradeInput ? gradeInput.value.trim() : '';
+      const numGrade = (valStr !== '' && !isNaN(Number(valStr))) ? Number(valStr) : null;
+      if (numGrade !== null) {
+        validEntries.push({ row, idx, numGrade, gradeInput });
+      }
+    });
+
+    let lowestIdx = -1;
+    if (isDropActive && validEntries.length > 1) {
+      let minVal = validEntries[0].numGrade;
+      lowestIdx = validEntries[0].idx;
+      validEntries.forEach(v => {
+        if (v.numGrade < minVal) {
+          minVal = v.numGrade;
+          lowestIdx = v.idx;
+        }
+      });
+    }
+
+    // Update row visual feedback (highlight dropped grade)
+    rows.forEach((row, idx) => {
+      const isDropped = isDropActive && idx === lowestIdx;
+      const gradeInput = row.querySelector('.sub-grade-input');
+      let badgeEl = row.querySelector('.dropped-badge');
+
+      if (isDropped) {
+        row.className = 'sub-eval-row bg-amber-500/5 p-3 rounded-2xl border border-amber-500/50 flex items-center justify-between gap-2 transition-all';
+        if (gradeInput) gradeInput.className = 'sub-grade-input w-16 bg-slate-800 border border-amber-500 text-amber-300 font-black text-sm text-center rounded-xl py-1.5 focus:border-purple-500 focus:outline-none';
+        if (!badgeEl) {
+          const nameCol = row.querySelector('.flex-1');
+          if (nameCol) {
+            badgeEl = document.createElement('span');
+            badgeEl.className = 'dropped-badge text-[9px] font-extrabold text-amber-400 bg-amber-500/20 px-1.5 py-0.2 rounded inline-block mt-0.5';
+            badgeEl.textContent = '🗑️ Eliminada por regla (Peor nota)';
+            nameCol.appendChild(badgeEl);
+          }
+        }
+      } else {
+        row.className = 'sub-eval-row bg-slate-900/90 p-3 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 transition-all';
+        if (gradeInput) gradeInput.className = 'sub-grade-input w-16 bg-slate-800 border border-slate-700 text-white font-black text-sm text-center rounded-xl py-1.5 focus:border-purple-500 focus:outline-none';
+        if (badgeEl) badgeEl.remove();
+      }
+    });
+
+    // Compute effective average
+    let avg = null;
+    if (validEntries.length > 0) {
+      if (isDropActive && validEntries.length > 1) {
+        const retained = validEntries.filter(v => v.idx !== lowestIdx);
+        const sum = retained.reduce((acc, v) => acc + v.numGrade, 0);
+        avg = sum / retained.length;
+      } else {
+        const sum = validEntries.reduce((acc, v) => acc + v.numGrade, 0);
+        avg = sum / validEntries.length;
+      }
+    }
+
+    const avgDisplay = document.getElementById('modal-subeval-avg-val');
+    const statsDisplay = document.getElementById('modal-subeval-stats');
+
+    if (avgDisplay) {
+      avgDisplay.textContent = avg !== null ? avg.toFixed(2) : 'S/I';
+      avgDisplay.className = `text-2xl font-black ${avg >= 4.0 ? 'text-emerald-400' : (avg !== null ? 'text-rose-400' : 'text-slate-500')} px-3 py-1 bg-slate-950 rounded-xl border border-slate-800`;
+    }
+
+    if (statsDisplay) {
+      statsDisplay.textContent = (isDropActive && validEntries.length > 1)
+        ? `Promedio de las ${validEntries.length - 1} mejores notas (1 descartada)`
+        : `${validEntries.length} nota(s) válida(s) ingresada(s)`;
+    }
+  };
+
+  // Bind input listeners
+  const bindRowEvents = (row) => {
+    const gradeInp = row.querySelector('.sub-grade-input');
+    const delBtn = row.querySelector('.delete-sub-btn');
+
+    if (gradeInp) gradeInp.addEventListener('input', updateModalCalculations);
+    if (delBtn) {
+      delBtn.addEventListener('click', () => {
+        row.remove();
+        updateModalCalculations();
+      });
+    }
+  };
+
+  itemsList.querySelectorAll('.sub-eval-row').forEach(bindRowEvents);
+  if (dropToggle) dropToggle.addEventListener('change', updateModalCalculations);
+
+  // Add new sub-evaluation row
+  if (addSubBtn) {
+    addSubBtn.addEventListener('click', () => {
+      const currentCount = itemsList.querySelectorAll('.sub-eval-row').length;
+      const singularName = (evalItem.name || 'Nota').replace(/es$/i, '').replace(/s$/i, '').trim();
+      const newRow = document.createElement('div');
+      newRow.className = 'sub-eval-row bg-slate-900/90 p-3 rounded-2xl border border-slate-800 flex items-center justify-between gap-2 transition-all';
+      newRow.setAttribute('data-sub-id', `sub-${Date.now()}-${currentCount + 1}`);
+      newRow.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <input type="text" class="sub-name-input w-full bg-transparent text-white font-bold text-xs focus:outline-none border-b border-transparent focus:border-purple-500" value="${singularName} ${currentCount + 1}" placeholder="Ej: Control ${currentCount + 1}" />
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <input type="number" step="0.1" min="1.0" max="7.0" value="" class="sub-grade-input w-16 bg-slate-800 border border-slate-700 text-white font-black text-sm text-center rounded-xl py-1.5 focus:border-purple-500 focus:outline-none" placeholder="1.0-7.0" />
+          <button type="button" class="delete-sub-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors" title="Eliminar esta nota">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      `;
+      itemsList.appendChild(newRow);
+      bindRowEvents(newRow);
+      if (window.lucide) window.lucide.createIcons();
+      updateModalCalculations();
+    });
+  }
+
+  // Save sub-evaluations
+  if (saveModalBtn) {
+    saveModalBtn.addEventListener('click', () => {
+      const rows = itemsList.querySelectorAll('.sub-eval-row');
+      const newSubs = Array.from(rows).map((row, idx) => {
+        const nameInp = row.querySelector('.sub-name-input');
+        const gradeInp = row.querySelector('.sub-grade-input');
+        const valStr = gradeInp ? gradeInp.value.trim() : '';
+        return {
+          id: row.getAttribute('data-sub-id') || `sub-${Date.now()}-${idx}`,
+          name: nameInp ? (nameInp.value.trim() || `Nota ${idx+1}`) : `Nota ${idx+1}`,
+          grade: (valStr !== '' && !isNaN(Number(valStr))) ? parseFloat(valStr) : null
+        };
+      });
+
+      evalItem.isSubEvaluationsEnabled = true;
+      evalItem.dropLowestCount = dropToggle && dropToggle.checked ? 1 : 0;
+      evalItem.subEvaluations = newSubs;
+      evalItem.grade = computeSubEvaluationsGrade(evalItem);
+
+      saveCourse(course);
+      closeModal();
+      showToast(`¡Desglose de "${evalItem.name}" guardado exitosamente!`, 'success');
+      if (onSaveCallback) onSaveCallback();
     });
   }
 }

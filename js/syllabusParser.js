@@ -49,23 +49,26 @@ export async function parseSyllabusContent(inputSource) {
 async function parseWithGeminiAPI(textContent, apiKey) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const systemPrompt = `Eres un sistema experto avanzado en análisis de syllabus, programas de curso y calendarizaciones universitarias en Chile, con especialización en la Universidad del Desarrollo (UDD).
-Tu tarea es leer detenidamente el texto proporcionado y extraer con precisión quirúrgica la siguiente información en formato JSON estricto.
+  const systemPrompt = `Eres un sistema experto avanzado en análisis de syllabus, programas de curso y calendarizaciones universitarias en Chile para todas las carreras (Ingeniería, Negocios, Derecho, Humanidades, Salud, Diseño, etc.) en la Universidad del Desarrollo (UDD).
+Tu tarea es leer detenidamente el texto proporcionado y extraer con precisión quirúrgica la información académica y evaluativa en formato JSON estricto.
 
 Reglas de extracción críticas:
 1. credits (number): Busca intensivamente términos como "Créditos", "Créditos SCT", "SCT", "UC" o "Créditos UDD". Extrae solo el número entero (ej. 6, 8, 10). Si no encuentras, usa 6.
-2. evaluations (array): Extrae ÚNICAMENTE las evaluaciones regulares que conforman la "Nota de Presentación" (Certámenes, Controles, Talleres, Laboratorios, Proyectos).
-   - EXCLUYE explícitamente "Examen", "Examen Final" y "Nota de Presentación" de esta lista.
-   - Extrae objetos con { "name": string, "weight": number, "date": string }.
-   - "name": Conserva el nombre exacto (ej. "Certamen 1", "Controles", "Talleres"). NO inventes números que no existen en el texto.
-   - "weight": Extrae el porcentaje exacto (ej. 20 para 20%). NUNCA uses 0 si el documento especifica un porcentaje.
-   - Revisa el texto dos veces para asegurarte de incluir TODO: Certámenes, Controles y Talleres.
-   - La suma de las ponderaciones (weight) de estos elementos extraídos DEBE sumar 100.
-3. examWeight (number): Busca la ponderación del Examen Final (usualmente 30% o 40%). Extrae solo el número. Si no existe, usa 30.
+2. evaluations (array): Extrae TODAS las evaluaciones que conforman la "Nota de Presentación":
+   - Tipos de evaluaciones universales: Certámenes individuales (Certamen 1, Certamen 2, etc.), Pruebas, Solemnes, Trabajos, Ensayos, Informes de Laboratorio, Proyectos, Entregas, Casos de Estudio, Tareas, Controles, Talleres, Quizzes, Exposiciones, Participación, etc.
+   - REGLA DE CERTÁMENES: Los certámenes o solemnes SIEMPRE deben ser elementos individuales separados (ej. "Certamen 1", "Certamen 2", "Certamen 3"), NUNCA agrupados en uno solo.
+   - REGLA DE EVALUACIONES COMPUESTAS (Controles, Talleres, Quizzes, Tareas):
+     * Si la evaluación agrupa múltiples notas (ej: "Controles", "Talleres", "Quizzes"):
+     * isSubEvaluationsEnabled: true
+     * subCount: Número de notas individuales mencionadas en el texto (ej. 4 para 4 controles, 5 para 5 talleres). Si no se especifica, usa 4.
+     * dropLowestCount: 1 si el texto indica que se elimina la nota más baja / peor nota (ej: "se eliminará la nota más baja de los controles"), de lo contrario 0.
+   - EXCLUYE explícitamente "Examen", "Examen Final" y "Nota de Presentación" de esta lista de evaluations.
+   - La suma de las ponderaciones (weight) de las evaluaciones DEBE sumar 100%.
+3. examWeight (number): Busca la ponderación del Examen Final (usualmente 30% o 40%). Si no hay examen o el curso es 100% práctico, usa 0 o 30.
 4. modulesPerDay (number): Retorna 2 si el horario indica bloques dobles (ej: H1-H2) o si no se especifica. Retorna 1 solo si es explícitamente un módulo.
 5. totalClasses (number): Por defecto 32 (16 semanas x 2).
 6. requiredAttendancePercent (number): Busca % de asistencia (ej: "Sobre 70%" -> 70, "75%" -> 75). Por defecto 70.
-7. classDays (array): Extrae los días de la semana en los que se imparte la clase y conviértelos a números: 1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado. Si no hay horario, retorna [].
+7. classDays (array): Extrae los días de la semana de clases (1=Lunes, 2=Martes, 3=Miércoles, 4=Jueves, 5=Viernes, 6=Sábado). Si no hay horario, retorna [].
 
 El JSON debe tener EXACTAMENTE esta estructura:
 {
@@ -77,7 +80,16 @@ El JSON debe tener EXACTAMENTE esta estructura:
   "modulesPerDay": number,
   "examWeight": number,
   "classDays": number[],
-  "evaluations": [ { "name": "string", "weight": number, "date": "string" } ]
+  "evaluations": [
+    {
+      "name": "string",
+      "weight": number,
+      "date": "string",
+      "isSubEvaluationsEnabled": boolean,
+      "subCount": number,
+      "dropLowestCount": number
+    }
+  ]
 }
 
 Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markdown (no uses \`\`\`json), sin texto adicional.`;
@@ -114,7 +126,10 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
               properties: {
                 name: { type: "STRING" },
                 weight: { type: "INTEGER" },
-                date: { type: "STRING" }
+                date: { type: "STRING" },
+                isSubEvaluationsEnabled: { type: "BOOLEAN" },
+                subCount: { type: "INTEGER" },
+                dropLowestCount: { type: "INTEGER" }
               },
               required: ["name", "weight", "date"]
             }
@@ -150,7 +165,7 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
     name: parsed.name || 'Asignatura Extraída (Gemini AI)',
     code: parsed.code || 'COD-101',
     credits: Number(parsed.credits) || 6,
-    requiredAttendancePercent: Number(parsed.requiredAttendancePercent) || 75,
+    requiredAttendancePercent: Number(parsed.requiredAttendancePercent) || 70,
     totalClasses: Number(parsed.totalClasses) || 32,
     modulesPerDay: Number(parsed.modulesPerDay) || 2,
     examWeight: Number(parsed.examWeight) || 30,
@@ -159,16 +174,62 @@ Responde ÚNICAMENTE con el objeto JSON estructurado, sin tildes graves de markd
     attended: 0,
     absent: 0,
     isUddRuleEnabled: true,
-    evaluations: Array.isArray(parsed.evaluations) ? parsed.evaluations.map((ev, i) => ({
-      id: `ev-gemini-${Date.now()}-${i}`,
-      name: ev.name || `Evaluación ${i+1}`,
-      weight: Number(ev.weight) || 25,
-      date: ev.date || 'Por definir',
-      grade: null
-    })) : [
-      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null },
-      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
-      { id: 'ev-3', name: 'Controles y Talleres', weight: 30, date: 'Semana 16', grade: null }
+    evaluations: Array.isArray(parsed.evaluations) ? parsed.evaluations.map((ev, i) => {
+      const isSub = !!ev.isSubEvaluationsEnabled || /control|taller|quiz|tarea|laboratorio|actividad/i.test(ev.name);
+      const subCount = Number(ev.subCount) || 4;
+      const dropLowest = ev.dropLowestCount !== undefined ? Number(ev.dropLowestCount) : (isSub ? 1 : 0);
+      
+      const singularName = ev.name.replace(/es$/i, '').replace(/s$/i, '').trim();
+
+      const subEvaluations = isSub ? Array.from({ length: subCount }, (_, k) => ({
+        id: `sub-${Date.now()}-${i}-${k}`,
+        name: `${singularName} ${k + 1}`,
+        grade: null
+      })) : [];
+
+      return {
+        id: `ev-gemini-${Date.now()}-${i}`,
+        name: ev.name || `Evaluación ${i + 1}`,
+        weight: Number(ev.weight) || 25,
+        date: ev.date || 'Por definir',
+        grade: null,
+        isSubEvaluationsEnabled: isSub,
+        dropLowestCount: dropLowest,
+        subEvaluations: subEvaluations
+      };
+    }) : [
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { 
+        id: 'ev-3', 
+        name: 'Controles', 
+        weight: 20, 
+        date: 'Semana 15', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-c1', name: 'Control 1', grade: null },
+          { id: 'sub-c2', name: 'Control 2', grade: null },
+          { id: 'sub-c3', name: 'Control 3', grade: null },
+          { id: 'sub-c4', name: 'Control 4', grade: null }
+        ] 
+      },
+      { 
+        id: 'ev-4', 
+        name: 'Talleres', 
+        weight: 10, 
+        date: 'Semana 16', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-t1', name: 'Taller 1', grade: null },
+          { id: 'sub-t2', name: 'Taller 2', grade: null },
+          { id: 'sub-t3', name: 'Taller 3', grade: null },
+          { id: 'sub-t4', name: 'Taller 4', grade: null }
+        ] 
+      }
     ]
   };
 }
@@ -296,32 +357,76 @@ export function extractMetadataFromText(text) {
   const modulesPerDay = /h1\s*(?:y|-)\s*h2/i.test(cleanText) ? 2 : 2;
 
   const evaluations = [];
-  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2})\b)?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
+  const evalRegex = /(Certamen|Prueba|Solemne|Interrogaci[oó]n|Tarea(?:s)?|Proyecto(?:s)?|Laboratorio(?:s)?|Control(?:es)?|Taller(?:es)?|Trabajo(?:s)?|Informe(?:s)?|Ensayo(?:s)?|Quiz(?:zes)?|Caso(?:s)?|Presentaci[oó]n(?:es)?|Exposici[oó]n(?:es)?|Entrega(?:s)?|Actividad(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2})\b)?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
   
   let match;
   while ((match = evalRegex.exec(cleanText)) !== null) {
     const type = match[1];
-    if (type.toLowerCase().includes('examen')) continue; // skip exam
+    if (type.toLowerCase().includes('examen')) continue; // skip final exam
 
     const num = match[2] ? ` ${match[2]}` : '';
     const weight = parseInt(match[3] || match[4] || '25', 10);
     const date = 'Por definir';
+    const evalName = `${type}${num}`.trim();
+
+    // Determine if composite (Controles, Talleres, Tareas, Quizzes, etc.)
+    const isComposite = /control|taller|quiz|tarea|laboratorio|actividad/i.test(evalName) && !num;
+    const subCount = 4;
+    const dropLowest = isComposite ? (/(?:elimina(?:r[aá])?|descarta(?:r[aá])?).*(?:peor|baja|menor)/i.test(cleanText) ? 1 : 1) : 0;
+    const singularName = evalName.replace(/es$/i, '').replace(/s$/i, '').trim();
+
+    const subEvaluations = isComposite ? Array.from({ length: subCount }, (_, k) => ({
+      id: `sub-${Date.now()}-${evaluations.length}-${k}`,
+      name: `${singularName} ${k + 1}`,
+      grade: null
+    })) : [];
 
     evaluations.push({
       id: `ev-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `${type}${num}`.trim(),
+      name: evalName,
       weight: weight,
       date: date,
-      grade: null
+      grade: null,
+      isSubEvaluationsEnabled: isComposite,
+      dropLowestCount: dropLowest,
+      subEvaluations
     });
   }
 
   if (evaluations.length === 0) {
     evaluations.push(
-      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null },
-      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null },
-      { id: 'ev-3', name: 'Controles', weight: 20, date: 'Semana 15', grade: null },
-      { id: 'ev-4', name: 'Talleres', weight: 10, date: 'Semana 16', grade: null }
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Semana 6', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Semana 12', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { 
+        id: 'ev-3', 
+        name: 'Controles', 
+        weight: 20, 
+        date: 'Semana 15', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-c1', name: 'Control 1', grade: null },
+          { id: 'sub-c2', name: 'Control 2', grade: null },
+          { id: 'sub-c3', name: 'Control 3', grade: null },
+          { id: 'sub-c4', name: 'Control 4', grade: null }
+        ] 
+      },
+      { 
+        id: 'ev-4', 
+        name: 'Talleres', 
+        weight: 10, 
+        date: 'Semana 16', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-t1', name: 'Taller 1', grade: null },
+          { id: 'sub-t2', name: 'Taller 2', grade: null },
+          { id: 'sub-t3', name: 'Taller 3', grade: null },
+          { id: 'sub-t4', name: 'Taller 4', grade: null }
+        ] 
+      }
     );
   }
 
@@ -360,10 +465,38 @@ function createEmptyParsedObject() {
     absent: 0,
     isUddRuleEnabled: true,
     evaluations: [
-      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Por definir', grade: null },
-      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Por definir', grade: null },
-      { id: 'ev-3', name: 'Controles', weight: 20, date: 'Por definir', grade: null },
-      { id: 'ev-4', name: 'Talleres', weight: 10, date: 'Por definir', grade: null }
+      { id: 'ev-1', name: 'Certamen 1', weight: 35, date: 'Por definir', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { id: 'ev-2', name: 'Certamen 2', weight: 35, date: 'Por definir', grade: null, isSubEvaluationsEnabled: false, dropLowestCount: 0, subEvaluations: [] },
+      { 
+        id: 'ev-3', 
+        name: 'Controles', 
+        weight: 20, 
+        date: 'Por definir', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-c1', name: 'Control 1', grade: null },
+          { id: 'sub-c2', name: 'Control 2', grade: null },
+          { id: 'sub-c3', name: 'Control 3', grade: null },
+          { id: 'sub-c4', name: 'Control 4', grade: null }
+        ] 
+      },
+      { 
+        id: 'ev-4', 
+        name: 'Talleres', 
+        weight: 10, 
+        date: 'Por definir', 
+        grade: null, 
+        isSubEvaluationsEnabled: true, 
+        dropLowestCount: 1, 
+        subEvaluations: [
+          { id: 'sub-t1', name: 'Taller 1', grade: null },
+          { id: 'sub-t2', name: 'Taller 2', grade: null },
+          { id: 'sub-t3', name: 'Taller 3', grade: null },
+          { id: 'sub-t4', name: 'Taller 4', grade: null }
+        ] 
+      }
     ],
     rawTextPreview: ''
   };
