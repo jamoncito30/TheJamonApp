@@ -301,6 +301,14 @@ function attachAuthListeners() {
 }
 
 function openSupabaseConfigModal() {
+  const adminPass = prompt('🔒 Área de Administración:\nIngresa la contraseña Maestra de Administración para modificar la configuración de Supabase:');
+  if (adminPass === null) return;
+
+  if (adminPass !== 'jamon2026') {
+    showToast('Acceso denegado: Contraseña de administración incorrecta.', 'danger');
+    return;
+  }
+
   const currentConfig = getSupabaseConfig();
   const modalContainer = document.createElement('div');
   modalContainer.id = 'supabase-config-wrapper';
