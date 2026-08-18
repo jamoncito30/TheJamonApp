@@ -1,0 +1,13 @@
+{
+  "name": "thejamonapp",
+  "version": "1.0.0",
+  "description": "PWA Móvil iOS para el control de asistencia universitaria, comodines UDD y estimación de notas.",
+  "main": "server.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "node server.js"
+  },
+  "keywords": ["pwa", "udd", "asistencia", "notas", "ios"],
+  "author": "",
+  "license": "MIT"
+}

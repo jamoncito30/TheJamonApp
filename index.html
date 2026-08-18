@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>TheJamonApp - Control de asistencia y notas</title>
+  
+  <!-- PWA Settings -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TheJamonApp" />
+  <link rel="apple-touch-icon" href="jamon_logo.jpg" />
+  
+  <!-- Fonts: Inter / San Francisco fallbacks -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            ios: {
+              bg: '#f2f2f7',
+              darkBg: '#0b0f19',
+              card: '#ffffff',
+              darkCard: '#161e2e',
+              primary: '#007aff',
+              green: '#34c759',
+              yellow: '#ffcc00',
+              red: '#ff3b30',
+              purple: '#af52de',
+              orange: '#ff9500',
+              teal: '#5ac8fa',
+              subtext: '#8e8e93',
+              darkSubtext: '#9ba3af'
+            }
+          },
+          boxShadow: {
+            'ios-glass': '0 8px 32px 0 rgba(0, 0, 0, 0.08)',
+            'ios-card': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03)',
+            'ios-button': '0 4px 12px rgba(0, 122, 255, 0.25)',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  
+  <!-- PDF.js for Syllabus PDF Text Extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <!-- Custom iOS Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased h-full overflow-hidden select-none">
+  
+  <div id="app-root" class="h-full w-full flex items-center justify-center bg-slate-950 p-0 sm:p-4">
+    <!-- Mobile Container Frame (Simulates iPhone on Desktop, Full view on Mobile) -->
+    <div id="mobile-container" class="w-full h-full sm:max-w-[430px] sm:h-[900px] sm:max-h-[95vh] bg-slate-900 sm:rounded-[48px] sm:border-[10px] sm:border-slate-800 sm:shadow-2xl overflow-hidden flex flex-col relative sm:ring-1 sm:ring-white/10 transition-all duration-300">
+      
+      <!-- iOS Dynamic Island / Notch (desktop simulator view only) -->
+      <div class="hidden sm:flex absolute top-0 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-b-2xl z-50 items-center justify-center gap-2 px-3">
+        <div class="w-3 h-3 rounded-full bg-slate-900 ring-1 ring-slate-800"></div>
+        <div class="w-3 h-3 rounded-full bg-slate-900 ring-1 ring-slate-800"></div>
+      </div>
+      
+      <!-- iOS Status Bar -->
+      <div id="ios-status-bar" class="w-full pt-2 px-6 flex justify-between items-center text-xs font-semibold text-slate-300 z-40 select-none bg-slate-900/80 backdrop-blur-md">
+        <span id="status-clock" class="tracking-tight">9:41</span>
+        <div class="flex items-center gap-1.5 text-[10px]">
+          <i data-lucide="signal" class="w-3.5 h-3.5"></i>
+          <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+          <div class="flex items-center gap-0.5 border border-slate-400 rounded-sm px-1 py-0.2">
+            <span class="text-[9px] font-bold">85%</span>
+            <div class="w-1.5 h-2.5 bg-green-500 rounded-xs"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- App Header with Profile Logo and Custom Title -->
+      <header class="px-5 py-3 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 flex items-center justify-between z-30">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl overflow-hidden shadow-lg shadow-red-500/20 shrink-0 border border-amber-500/40">
+            <img src="jamon_logo.jpg" alt="TheJamonApp Profile" class="w-full h-full object-cover" />
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              TheJamonApp
+              <span class="text-[9px] uppercase tracking-wider font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">UDD</span>
+            </h1>
+            <p id="header-subtitle" class="text-xs text-slate-400 font-medium">Control de asistencia y notas</p>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <!-- Toggle Frame / Full View -->
+          <button id="toggle-frame-btn" title="Alternar Vista Móvil / Pantalla Completa" class="hidden sm:flex w-8 h-8 rounded-full bg-slate-800/90 text-slate-300 hover:text-white items-center justify-center transition-all hover:bg-slate-700 active:scale-95 border border-slate-700/50">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Content Scrollable Area -->
+      <main id="main-content" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-5 pb-24 scroll-smooth">
+        <!-- Views will be dynamically rendered here -->
+      </main>
+
+      <!-- iOS Bottom Navigation Tab Bar -->
+      <nav class="absolute bottom-0 left-0 right-0 h-20 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-800/80 px-4 flex items-center justify-around z-40 pb-4">
+        <button data-tab="dashboard" class="nav-tab active flex flex-col items-center gap-1 text-blue-400 transition-all active:scale-95 group">
+          <div class="p-1.5 rounded-xl group-[.active]:bg-blue-500/15 transition-all">
+            <i data-lucide="layout-grid" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[11px] font-semibold tracking-tight">Semáforo</span>
+        </button>
+
+        <button data-tab="syllabus" class="nav-tab flex flex-col items-center gap-1 text-slate-400 transition-all active:scale-95 group">
+          <div class="p-1.5 rounded-xl group-[.active]:bg-blue-500/15 transition-all">
+            <i data-lucide="file-up" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[11px] font-semibold tracking-tight">Subir Ramos</span>
+        </button>
+
+        <button data-tab="grades" class="nav-tab flex flex-col items-center gap-1 text-slate-400 transition-all active:scale-95 group">
+          <div class="p-1.5 rounded-xl group-[.active]:bg-blue-500/15 transition-all">
+            <i data-lucide="calculator" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[11px] font-semibold tracking-tight">Notas</span>
+        </button>
+
+        <button data-tab="courses" class="nav-tab flex flex-col items-center gap-1 text-slate-400 transition-all active:scale-95 group">
+          <div class="p-1.5 rounded-xl group-[.active]:bg-blue-500/15 transition-all">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <span class="text-[11px] font-semibold tracking-tight">Ramos</span>
+        </button>
+      </nav>
+      
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-11/12 max-w-xs"></div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/storage.js"></script>
+  <script type="module" src="js/syllabusParser.js"></script>
+  <script type="module" src="js/components.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

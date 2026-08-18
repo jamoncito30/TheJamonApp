@@ -1,0 +1,95 @@
+/* Custom iOS styles for MarginApp */
+
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.4);
+}
+
+/* iOS glassmorphism blur effect */
+.ios-glass {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ios-card {
+  background: #1e293b;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* iOS active tap feedback */
+.ios-tap-active {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+}
+
+.ios-tap-active:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+/* Status Badge Glows */
+.glow-green {
+  box-shadow: 0 0 16px rgba(52, 199, 89, 0.35);
+}
+
+.glow-yellow {
+  box-shadow: 0 0 16px rgba(255, 204, 0, 0.35);
+}
+
+.glow-red {
+  box-shadow: 0 0 16px rgba(255, 59, 48, 0.4);
+}
+
+/* Dynamic Tab Bar highlighting */
+.nav-tab.active {
+  color: #3b82f6;
+}
+
+.nav-tab.active i {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.5));
+}
+
+/* Smooth fade-in transition for view switching */
+@keyframes iosSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-ios-fade {
+  animation: iosSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Ripple animation on attendance click */
+@keyframes pulseGlow {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.pulse-once {
+  animation: pulseGlow 0.3s ease-in-out;
+}
