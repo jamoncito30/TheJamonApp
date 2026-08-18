@@ -1,4 +1,7 @@
-// TheJamonApp Storage Manager & Helper Formulas
+import { 
+  saveCourseToSupabase, 
+  deleteCourseFromSupabase 
+} from './supabaseClient.js';
 
 const STORAGE_KEY = 'marginapp_courses_v1';
 const HISTORY_KEY = 'marginapp_history_v1';
@@ -65,12 +68,14 @@ export function saveCourse(courseData) {
   }
   
   saveCourses(courses);
+  saveCourseToSupabase(courseData).catch(e => console.warn('Supabase sync notice:', e));
   return courses;
 }
 
 export function deleteCourse(courseId) {
   const courses = getCourses().filter(c => c.id !== courseId);
   saveCourses(courses);
+  deleteCourseFromSupabase(courseId).catch(e => console.warn('Supabase delete notice:', e));
   return courses;
 }
 

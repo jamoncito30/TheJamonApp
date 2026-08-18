@@ -69,30 +69,30 @@
 
   <!-- Custom iOS Styles -->
   <link rel="stylesheet" href="styles.css" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Supabase JS Client CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans antialiased h-full overflow-hidden select-none">
-  
-  <div id="app-root" class="h-full w-full flex items-center justify-center bg-slate-950 p-0 sm:p-4">
-    <!-- Mobile Container Frame (Simulates iPhone on Desktop, Full view on Mobile) -->
-    <div id="mobile-container" class="w-full h-full sm:max-w-[430px] sm:h-[900px] sm:max-h-[95vh] bg-slate-900 sm:rounded-[48px] sm:border-[10px] sm:border-slate-800 sm:shadow-2xl overflow-hidden flex flex-col relative sm:ring-1 sm:ring-white/10 transition-all duration-300">
+<body class="h-full bg-slate-950 text-slate-100 font-sans antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
+
+  <!-- Desktop Backdrop & Container Wrapper -->
+  <div class="min-h-full w-full flex items-center justify-center p-0 sm:p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    
+    <!-- iPhone Device Frame Container -->
+    <div id="app-frame" class="w-full max-w-md h-screen sm:h-[844px] bg-slate-900 sm:rounded-[48px] shadow-2xl sm:shadow-blue-500/10 border-0 sm:border-[8px] border-slate-800 flex flex-col relative overflow-hidden transition-all duration-300">
       
-      <!-- iOS Dynamic Island / Notch (desktop simulator view only) -->
+      <!-- Top Notch (Simulated for Desktop View) -->
       <div class="hidden sm:flex absolute top-0 left-1/2 -translate-x-1/2 w-36 h-6 bg-black rounded-b-2xl z-50 items-center justify-center gap-2 px-3">
         <div class="w-3 h-3 rounded-full bg-slate-900 ring-1 ring-slate-800"></div>
         <div class="w-3 h-3 rounded-full bg-slate-900 ring-1 ring-slate-800"></div>
       </div>
       
-      <!-- iOS Status Bar -->
+      <!-- iOS Status Bar (Clean real time only) -->
       <div id="ios-status-bar" class="w-full pt-2 px-6 flex justify-between items-center text-xs font-semibold text-slate-300 z-40 select-none bg-slate-900/80 backdrop-blur-md">
         <span id="status-clock" class="tracking-tight">9:41</span>
-        <div class="flex items-center gap-1.5 text-[10px]">
-          <i data-lucide="signal" class="w-3.5 h-3.5"></i>
-          <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
-          <div class="flex items-center gap-0.5 border border-slate-400 rounded-sm px-1 py-0.2">
-            <span class="text-[9px] font-bold">85%</span>
-            <div class="w-1.5 h-2.5 bg-green-500 rounded-xs"></div>
-          </div>
-        </div>
+        <span class="text-[9px] font-mono text-slate-500 font-extrabold bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/50">v1.2.0</span>
       </div>
       
       <!-- App Header with Profile Logo and Custom Title -->
@@ -111,6 +111,9 @@
         </div>
         
         <div class="flex items-center gap-2">
+          <!-- Auth User Info Widget / Logout Button -->
+          <div id="auth-user-widget" class="flex items-center gap-1.5"></div>
+
           <!-- Toggle Frame / Full View -->
           <button id="toggle-frame-btn" title="Alternar Vista Móvil / Pantalla Completa" class="hidden sm:flex w-8 h-8 rounded-full bg-slate-800/90 text-slate-300 hover:text-white items-center justify-center transition-all hover:bg-slate-700 active:scale-95 border border-slate-700/50">
             <i data-lucide="smartphone" class="w-4 h-4"></i>

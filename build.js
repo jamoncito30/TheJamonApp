@@ -31,6 +31,7 @@ filesToCopy.forEach(file => {
 
 // JS Files
 const jsFiles = [
+  'supabaseClient.js',
   'storage.js',
   'syllabusParser.js',
   'components.js',

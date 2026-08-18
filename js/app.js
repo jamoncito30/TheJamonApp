@@ -3,6 +3,7 @@ import {
   getCourses, 
   saveCourse, 
   deleteCourse, 
+  saveCourses,
   resetToDemoData, 
   logAttendance,
   calculateAttendanceMetrics,
@@ -22,26 +23,101 @@ import {
   renderConfirmationModal, 
   renderGradesView, 
   renderGradeDetails,
-  renderCoursesView 
+  renderCoursesView,
+  renderAuthView,
+  renderSupabaseConfigModal 
 } from './components.js';
+
+import {
+  signUpWithEmail,
+  signInWithEmail,
+  signInWithGoogle,
+  signOut,
+  getCurrentUser,
+  fetchUserCoursesFromSupabase,
+  isSupabaseConfigured,
+  getSupabaseConfig,
+  saveSupabaseConfig
+} from './supabaseClient.js';
 
 // Application State
 const state = {
   currentTab: 'dashboard',
   courses: [],
+  currentUser: null,
+  isGuestMode: false,
   pendingParsedCourse: null,
   isMobileFrame: true
 };
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   state.courses = getCourses();
   initClock();
   setupTabNavigation();
   setupGlobalListeners();
   registerServiceWorker();
+  await checkAuthState();
   renderCurrentTab();
 });
+
+async function checkAuthState() {
+  try {
+    const user = await getCurrentUser();
+    state.currentUser = user;
+    
+    if (user) {
+      const remoteCourses = await fetchUserCoursesFromSupabase();
+      if (remoteCourses && remoteCourses.length > 0) {
+        state.courses = remoteCourses;
+        saveCourses(remoteCourses);
+      }
+    }
+  } catch (err) {
+    console.warn('Auth check notice:', err);
+  }
+  updateAuthUserWidget();
+}
+
+function updateAuthUserWidget() {
+  const widgetEl = document.getElementById('auth-user-widget');
+  if (!widgetEl) return;
+
+  if (state.currentUser) {
+    const shortEmail = state.currentUser.email ? state.currentUser.email.split('@')[0] : 'Usuario';
+    widgetEl.innerHTML = `
+      <div class="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/30 px-2 py-1 rounded-xl">
+        <i data-lucide="user" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span class="text-[10px] font-bold text-white max-w-[80px] truncate">${shortEmail}</span>
+        <button id="logout-btn" title="Cerrar Sesión" class="text-slate-400 hover:text-rose-400 ml-1 transition-colors">
+          <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await signOut();
+        state.currentUser = null;
+        state.isGuestMode = false;
+        showToast('Sesión cerrada correctamente', 'info');
+        updateAuthUserWidget();
+        renderCurrentTab();
+      });
+    }
+  } else if (state.isGuestMode) {
+    widgetEl.innerHTML = `
+      <span class="text-[9px] font-extrabold text-amber-400 bg-amber-500/20 border border-amber-500/30 px-2 py-1 rounded-xl">
+        Invitado
+      </span>
+    `;
+  } else {
+    widgetEl.innerHTML = '';
+  }
+
+  if (window.lucide) window.lucide.createIcons();
+}
 
 // Update iOS Status Bar Clock
 function initClock() {
@@ -90,6 +166,14 @@ function renderCurrentTab() {
   const mainEl = document.getElementById('main-content');
   if (!mainEl) return;
 
+  // Protect views: if not logged in and not guest mode, show Auth view
+  if (!state.currentUser && !state.isGuestMode) {
+    mainEl.innerHTML = renderAuthView(isSupabaseConfigured());
+    if (window.lucide) window.lucide.createIcons();
+    attachAuthListeners();
+    return;
+  }
+
   state.courses = getCourses();
 
   switch (state.currentTab) {
@@ -121,6 +205,121 @@ function renderCurrentTab() {
   // Refresh Lucide Icons after dynamic HTML injection
   if (window.lucide) {
     window.lucide.createIcons();
+  }
+}
+
+function attachAuthListeners() {
+  let mode = 'login';
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabSignup = document.getElementById('auth-tab-signup');
+  const form = document.getElementById('auth-form');
+  const submitLabel = document.getElementById('auth-submit-label');
+  const googleBtn = document.getElementById('auth-google-btn');
+  const guestBtn = document.getElementById('guest-mode-btn');
+  const configBtn = document.getElementById('open-config-btn');
+
+  if (tabLogin && tabSignup) {
+    tabLogin.addEventListener('click', () => {
+      mode = 'login';
+      tabLogin.className = 'auth-mode-btn active py-2 rounded-xl text-xs font-bold transition-all text-white bg-blue-600 shadow-md';
+      tabSignup.className = 'auth-mode-btn py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white';
+      if (submitLabel) submitLabel.textContent = 'Iniciar Sesión';
+    });
+
+    tabSignup.addEventListener('click', () => {
+      mode = 'signup';
+      tabSignup.className = 'auth-mode-btn active py-2 rounded-xl text-xs font-bold transition-all text-white bg-blue-600 shadow-md';
+      tabLogin.className = 'auth-mode-btn py-2 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white';
+      if (submitLabel) submitLabel.textContent = 'Crear Cuenta Nueva';
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value.trim();
+
+      if (!isSupabaseConfigured()) {
+        showToast('Debes configurar Supabase primero. Ingresa tus credenciales en el enlace inferior.', 'warning');
+        openSupabaseConfigModal();
+        return;
+      }
+
+      showToast('Procesando solicitud...', 'info');
+      try {
+        if (mode === 'signup') {
+          await signUpWithEmail(email, password);
+          showToast('¡Cuenta registrada! Revisa tu correo o inicia sesión.', 'success');
+        } else {
+          await signInWithEmail(email, password);
+          showToast('¡Sesión iniciada correctamente!', 'success');
+        }
+        await checkAuthState();
+        renderCurrentTab();
+      } catch (err) {
+        showToast(err.message || 'Error en la autenticación', 'danger');
+      }
+    });
+  }
+
+  if (googleBtn) {
+    googleBtn.addEventListener('click', async () => {
+      if (!isSupabaseConfigured()) {
+        showToast('Debes configurar Supabase primero.', 'warning');
+        openSupabaseConfigModal();
+        return;
+      }
+      try {
+        await signInWithGoogle();
+      } catch (err) {
+        showToast(err.message || 'Error al conectar con Google', 'danger');
+      }
+    });
+  }
+
+  if (guestBtn) {
+    guestBtn.addEventListener('click', () => {
+      state.isGuestMode = true;
+      showToast('Continuando en Modo Invitado local', 'info');
+      updateAuthUserWidget();
+      renderCurrentTab();
+    });
+  }
+
+  if (configBtn) {
+    configBtn.addEventListener('click', openSupabaseConfigModal);
+  }
+}
+
+function openSupabaseConfigModal() {
+  const currentConfig = getSupabaseConfig();
+  const modalContainer = document.createElement('div');
+  modalContainer.id = 'supabase-config-wrapper';
+  modalContainer.innerHTML = renderSupabaseConfigModal(currentConfig.url, currentConfig.anonKey);
+  document.body.appendChild(modalContainer);
+  if (window.lucide) window.lucide.createIcons();
+
+  const closeBtn = document.getElementById('close-config-modal');
+  const cancelBtn = document.getElementById('cancel-config-btn');
+  const form = document.getElementById('supabase-config-form');
+
+  const closeModal = () => modalContainer.remove();
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const url = document.getElementById('config-url').value.trim();
+      const key = document.getElementById('config-key').value.trim();
+
+      saveSupabaseConfig(url, key);
+      showToast('¡Configuración de Supabase guardada!', 'success');
+      closeModal();
+      renderCurrentTab();
+    });
   }
 }
 
