@@ -258,7 +258,7 @@ export function extractMetadataFromText(text) {
   }
 
   const evaluations = [];
-  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2})(?!\s*\d|\s*%))?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
+  const evalRegex = /(Certamen|Prueba|Solemne|Tarea|Proyecto|Laboratorio|Control(?:es)?|Taller(?:es)?)\s*(?:N?[°\.]?\s*(\d{1,2})\b)?\s*[:|-]?\s*(?:\((?:ponderaci[oó]n:?\s*)?(\d{1,2})%\)|(\d{1,2})\s*%)/gi;
   
   let match;
   while ((match = evalRegex.exec(cleanText)) !== null) {
